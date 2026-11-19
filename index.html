@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Help Hanzo Find</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A free daily word search with Hanzo the Akita puppy. Find his words, keep your tidy streak.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one narrow column, Hanzo on top, the grid as the hero, book shelf at the end */
+:root {
+  --bg: #f2f5f1;        /* sage paper */
+  --card: #ffffff;
+  --ink: #22302a;
+  --muted: #5d6d65;
+  --line: #d7e0da;
+  --amber: #c8741f;     /* Akita coat */
+  --amber-soft: #f6e3cd;
+  --leaf: #3f7d5c;
+  --leaf-soft: #dcebe2;
+  --sel: rgba(200,116,31,.35);
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17201c; --card: #1f2a25; --ink: #e8efe9; --muted: #a3b3aa; --line: #33433b;
+  --amber: #f0a352; --amber-soft: #3d2f20; --leaf: #7cc49d; --leaf-soft: #23392d; --sel: rgba(240,163,82,.35); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #17201c; --card: #1f2a25; --ink: #e8efe9; --muted: #a3b3aa; --line: #33433b;
+  --amber: #f0a352; --amber-soft: #3d2f20; --leaf: #7cc49d; --leaf-soft: #23392d; --sel: rgba(240,163,82,.35); color-scheme: dark; }
+
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; }
+.wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.5rem; letter-spacing: .01em; line-height: 1.1; }
+.brand small { display: block; font-family: var(--body); font-weight: 400; font-size: .8rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.streak { display: flex; align-items: center; gap: 8px; background: var(--amber-soft); color: var(--ink); border-radius: 999px; padding: 6px 12px; font-family: var(--display); font-weight: 600; white-space: nowrap; }
+.streak b { color: var(--amber); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+
+.stage { display: flex; flex-direction: column; gap: 0; }
+.scene { position: relative; width: 100%; aspect-ratio: 5 / 4; max-height: 62vh; border-radius: 24px; overflow: hidden; background: var(--amber-soft); }
+.hanzo { position: absolute; inset: 0; transform-origin: 50% 100%; animation: breathe 3.6s ease-in-out infinite; }
+.hanzo img, .hanzo video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; display: block; transition: opacity .7s ease; animation: drift 14s ease-in-out infinite alternate; }
+.hanzo img.out { opacity: 0; }
+.hanzo.hop { animation: hop .6s cubic-bezier(.3,1.6,.5,1); }
+.hanzo.wiggle { animation: wiggle .9s ease-in-out 2; }
+.hearts { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.heart { position: absolute; bottom: 30%; font-size: 26px; color: var(--amber); animation: rise 1.3s ease-out forwards; }
+.bubble { position: relative; z-index: 3; margin: -34px 14px 0; background: var(--card); border: 1.5px solid var(--line); border-radius: 18px; padding: 10px 14px; min-width: 0; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.bubble::before { content: ""; position: absolute; left: 34px; top: -9px; width: 14px; height: 14px; background: var(--card); border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line); transform: rotate(45deg); }
+.bubble .kicker { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.bubble .say { font-family: var(--display); font-weight: 600; font-size: 1.12rem; line-height: 1.25; text-wrap: balance; }
+
+.board { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 8px; }
+.gridwrap { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+.grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); }
+.cell { display: flex; align-items: center; justify-content: center; font-family: var(--body); font-weight: 700; font-size: clamp(.82rem, 3.6vw, 1.15rem); color: var(--ink); cursor: pointer; position: relative; z-index: 2; }
+.cell.anchor { color: var(--amber); }
+svg.lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+svg.lines line { stroke-linecap: round; stroke-width: .78; }
+svg.lines line.found { stroke: var(--leaf-soft); }
+svg.lines line.live { stroke: var(--sel); }
+
+.meta { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: .9rem; color: var(--muted); padding: 6px 4px 0; }
+.meta .clock { font-variant-numeric: tabular-nums; }
+
+.words { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.word { padding: 4px 10px; border-radius: 999px; background: var(--card); border: 1.5px solid var(--line); font-weight: 700; font-size: .88rem; letter-spacing: .03em; }
+.word.got { background: var(--leaf-soft); border-color: transparent; color: var(--leaf); text-decoration: line-through; text-decoration-thickness: 2px; }
+
+.done { background: var(--card); border: 1.5px solid var(--leaf); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.done h2 { font-family: var(--display); font-weight: 700; font-size: 1.35rem; margin: 0; text-wrap: balance; }
+.fact { background: var(--leaf-soft); border-radius: 12px; padding: 10px 12px; font-size: .95rem; }
+.fact b { color: var(--leaf); }
+.week { display: flex; gap: 6px; }
+.week span { flex: 1; text-align: center; font-size: .72rem; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.week i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: block; }
+.week i.on { background: var(--amber); border-color: var(--amber); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button, .btn { font: inherit; font-family: var(--display); font-weight: 600; font-size: 1rem; border-radius: 12px; padding: 10px 16px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+button.ghost, .btn.ghost { background: transparent; color: var(--ink); }
+button:focus-visible, .btn:focus-visible, .cell:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.sharebox { width: 100%; font: inherit; font-size: .9rem; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); padding: 8px; resize: none; }
+.note { font-size: .85rem; color: var(--muted); min-height: 1.2em; }
+
+.shelf { background: var(--amber-soft); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.shelf h3 { font-family: var(--display); font-weight: 700; font-size: 1.2rem; margin: 0; }
+.shelf p { margin: 0; font-size: .95rem; }
+.books { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.book { background: var(--card); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); text-decoration: none; border: 1.5px solid transparent; }
+a.book:hover { border-color: var(--amber); }
+.book .k { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.book .n { font-family: var(--display); font-weight: 600; font-size: 1.02rem; line-height: 1.2; }
+.book .p { font-weight: 700; color: var(--amber); }
+.book .soon { font-size: .8rem; color: var(--muted); }
+
+.more { display: flex; justify-content: center; }
+
+/* game switcher */
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 4px; }
+.tabs button { background: transparent; color: var(--muted); border: 0; border-radius: 10px; padding: 8px 4px; font-size: .95rem; justify-content: center; position: relative; }
+.tabs button[aria-selected="true"] { background: var(--amber-soft); color: var(--ink); }
+.tabs button .tick { color: var(--leaf); font-size: .85em; }
+.game[hidden] { display: none !important; }
+.game { display: flex; flex-direction: column; gap: 16px; }
+
+/* sudoku */
+.sgrid { display: grid; grid-template-columns: repeat(9, 1fr); aspect-ratio: 1 / 1; width: 100%; border: 2.5px solid var(--ink); border-radius: 6px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.scell { display: flex; align-items: center; justify-content: center; font-family: var(--body); font-weight: 400; font-size: clamp(1.05rem, 5.2vw, 1.5rem); color: var(--amber); background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: pointer; padding: 0; min-width: 0; }
+.scell.given { color: var(--ink); font-weight: 700; cursor: default; }
+.scell.c2, .scell.c5 { border-right: 2.5px solid var(--ink); }
+.scell.r2, .scell.r5 { border-bottom: 2.5px solid var(--ink); }
+.scell.peer { background: var(--bg); }
+.scell.same { background: var(--leaf-soft); }
+.scell.sel { background: var(--amber-soft); box-shadow: inset 0 0 0 2.5px var(--amber); }
+.scell.bad { color: #c0392b; text-decoration: underline wavy; text-underline-offset: 3px; }
+.pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+.pad button { background: var(--card); color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 0; justify-content: center; font-size: 1.2rem; }
+.pad button.used { color: var(--muted); opacity: .45; }
+.pad button.erase { font-size: .9rem; }
+
+/* crossword */
+.xgrid { display: grid; width: 100%; gap: 2px; user-select: none; -webkit-user-select: none; }
+.xcell { position: relative; aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; font-family: var(--body); font-weight: 700; font-size: clamp(.8rem, 4vw, 1.2rem); text-transform: uppercase; background: var(--card); border: 1.5px solid var(--line); border-radius: 4px; color: var(--ink); cursor: pointer; padding: 0; min-width: 0; }
+.xcell.block { visibility: hidden; }
+.xcell .num { position: absolute; top: 1px; left: 2px; font-size: .5rem; font-weight: 700; color: var(--muted); line-height: 1; }
+.xcell.word { background: var(--amber-soft); }
+.xcell.sel { background: var(--amber); color: #fff; border-color: var(--amber); }
+.xcell.sel .num { color: #fff; }
+.xcell.ok { background: var(--leaf-soft); color: var(--leaf); border-color: transparent; }
+.xcell.ok.sel { background: var(--leaf); color: #fff; }
+.xclue { display: flex; align-items: center; gap: 8px; background: var(--amber-soft); border-radius: 12px; padding: 8px 10px; margin-top: 8px; min-height: 2.6em; }
+.xclue b { font-family: var(--display); white-space: nowrap; }
+.xclue span { flex: 1; font-size: .95rem; line-height: 1.25; }
+.xclue button { background: transparent; color: var(--ink); border: 0; padding: 4px 8px; font-size: 1.1rem; }
+.keys { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.keys div { display: flex; gap: 4px; justify-content: center; }
+.keys button { flex: 1; max-width: 42px; background: var(--card); color: var(--ink); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 0; font-family: var(--body); font-weight: 700; font-size: .95rem; justify-content: center; }
+.keys button.wide { max-width: 64px; flex: 1.5; font-size: .85rem; }
+.clues { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.clues h4 { font-family: var(--display); margin: 0 0 4px; font-size: 1rem; }
+.clues ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.clues li { font-size: .88rem; line-height: 1.3; cursor: pointer; border-radius: 6px; padding: 2px 4px; }
+.clues li b { color: var(--amber); margin-right: 4px; }
+.clues li.on { background: var(--amber-soft); }
+.clues li.solved { color: var(--muted); text-decoration: line-through; }
+@media (max-width: 420px) { .clues { grid-template-columns: 1fr; } }
+footer { font-size: .78rem; color: var(--muted); text-align: center; text-wrap: balance; }
+
+.paws { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
+.paw { position: absolute; top: -30px; font-size: 22px; animation: fall 2.4s ease-in forwards; color: var(--amber); }
+
+.grow { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.grow .steps { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 6px; }
+.grow .bar { height: 3px; width: 18px; border-radius: 2px; background: var(--line); }
+.grow .bar.on { background: var(--amber); }
+.gstep { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.gstep .pic { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: var(--amber-soft); border: 2.5px solid var(--line); display: grid; place-items: center; font-family: var(--display); font-size: 1.4rem; color: var(--muted); }
+.gstep .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gstep.locked .pic img { filter: grayscale(1) brightness(1.15); opacity: .45; }
+.gstep.now .pic { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
+.gstep b { font-family: var(--display); font-weight: 600; font-size: .9rem; line-height: 1.1; }
+.gstep small { font-size: .74rem; color: var(--muted); }
+.grow .gnote { font-size: .9rem; color: var(--muted); text-align: center; }
+.grow .gnote b { color: var(--ink); }
+.preview { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); border: 1.5px dashed var(--line); border-radius: 12px; padding: 6px 10px; }
+.preview button { font: inherit; font-weight: 700; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.preview button[aria-pressed="true"] { border-color: var(--amber); background: var(--amber-soft); }
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02, 1.015); } }
+@keyframes drift { from { transform: scale(1.04) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -1.5%); } }
+@keyframes hop { 0% { transform: translateY(0) scale(1); } 30% { transform: translateY(4px) scale(1.04, .95); } 55% { transform: translateY(-22px) scale(.97, 1.04); } 80% { transform: translateY(2px) scale(1.02, .98); } 100% { transform: translateY(0) scale(1); } }
+@keyframes wiggle { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-4deg) scale(1.03); } 40% { transform: rotate(4deg) scale(1.05); } 60% { transform: rotate(-3deg) scale(1.03); } 80% { transform: rotate(2deg); } }
+@keyframes rise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-160px) scale(1.2); opacity: 0; } }
+@keyframes fall { to { transform: translateY(110vh) rotate(260deg); opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .hanzo, .hanzo.hop, .hanzo.wiggle, .hanzo img, .paw, .heart { animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="preview" id="preview" hidden>Preview only, as if your best streak were:
+    <button type="button" data-s="0">Day 1, baby</button><button type="button" data-s="7">7 days, teen</button><button type="button" data-s="30">30 days, grown-up</button>
+  </div>
+  <header>
+    <div class="brand">Help Hanzo Find<small>A daily puzzle from TidyHoursCo</small></div>
+    <div class="streak" title="Days in a row you finished the daily puzzle">🐾 <b id="streakNum">0</b> <span id="streakWord">day streak</span></div>
+  </header>
+
+  <section class="stage" aria-live="polite">
+    <div class="scene">
+      <div class="hanzo" id="hanzo"><img id="hanzoB" alt="" aria-hidden="true" class="out"><img id="hanzoImg" alt="Hanzo the Akita puppy"></div>
+      <div class="hearts" id="hearts" aria-hidden="true"></div>
+    </div>
+    <div class="bubble"><div class="kicker" id="kicker">Today's puzzle</div><div class="say" id="say">Can you help me find my words?</div></div>
+  </section>
+
+  <section class="grow" id="grow" aria-label="Hanzo grows up as your streak grows">
+    <div class="steps" id="gsteps"></div>
+    <div class="gnote" id="gnote"></div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Pick a puzzle">
+    <button type="button" role="tab" data-g="ws" aria-selected="true">Word search</button>
+    <button type="button" role="tab" data-g="sd" aria-selected="false">Sudoku</button>
+    <button type="button" role="tab" data-g="xw" aria-selected="false">Crossword</button>
+  </nav>
+
+  <div class="game" id="g-ws">
+  <section class="board">
+    <div class="gridwrap" id="gridwrap">
+      <svg class="lines" id="lines" viewBox="0 0 15 15" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="grid" id="grid" role="grid" aria-label="Word search grid"></div>
+    </div>
+    <div class="meta"><span id="theme">Theme</span><span><span id="count">0 of 15</span> · <span class="clock" id="clock">0:00</span></span></div>
+  </section>
+
+  <section class="words" id="words" aria-label="Words to find"></section>
+  </div>
+
+  <div class="game" id="g-sd" hidden>
+    <section class="board">
+      <div class="sgrid" id="sgrid" role="grid" aria-label="Sudoku grid"></div>
+      <div class="meta"><span>Fill every row, column and box with 1 to 9</span><span class="clock" id="sclock">0:00</span></div>
+      <div class="pad" id="pad"></div>
+    </section>
+  </div>
+
+  <div class="game" id="g-xw" hidden>
+    <section class="board">
+      <div class="xgrid" id="xgrid" role="grid" aria-label="Crossword grid"></div>
+      <div class="meta"><span id="xtheme">Theme</span><span><span id="xcount">0 of 0</span> · <span class="clock" id="xclock">0:00</span></span></div>
+      <div class="xclue"><button type="button" id="xprev" aria-label="Previous clue">‹</button><b id="xnum"></b><span id="xq"></span><button type="button" id="xnext" aria-label="Next clue">›</button></div>
+      <div class="keys" id="keys"></div>
+    </section>
+    <section class="clues" id="clues"></section>
+  </div>
+
+  <section class="done" id="done" hidden>
+    <h2 id="doneTitle">You found all of Hanzo's words!</h2>
+    <div class="fact"><b id="factLabel">Puppy fact:</b> <span id="fact"></span></div>
+    <div class="week" id="week" aria-label="This week"></div>
+    <div class="row">
+      <button id="shareBtn" type="button">Share my result</button>
+      <button id="nextBtn" class="ghost" type="button">Play another</button>
+    </div>
+    <textarea class="sharebox" id="shareText" rows="3" readonly hidden aria-label="Result to copy"></textarea>
+    <div class="note" id="shareNote"></div>
+  </section>
+
+  <section class="shelf" id="shelf">
+    <h3>Take Hanzo offline</h3>
+    <p>Same puppy, same puzzles, on paper. A screen-free break that still keeps your mind tidy.</p>
+    <div class="books" id="books"></div>
+  </section>
+
+  <div class="more"><button id="moreBtn" class="ghost" type="button">Play an extra puzzle</button></div>
+
+  <footer>A new word search, sudoku and crossword every day. Your streak saves on this device only, no sign-up needed.<br>Hanzo is a real Akita. His pictures were made with an AI image tool, based on photos of him.</footer>
+</div>
+<div class="paws" id="paws" aria-hidden="true"></div>
+
+<script>
+/* ---------- settings to fill before launch ---------- */
+const CONFIG = {
+  start: "2026-11-23",     // puzzle 1 is the daily puzzle on this date
+  etsy: "https://www.etsy.com/listing/4616085117",                // Baby Hanzo printable listing link
+  paperback: "",           // Amazon paperback link, once it's live
+  shareUrl: "https://ajalvarez91-oss.github.io/hanzo/",            // the page's public address, added to shared results
+  preview: false            // shows the stage buttons for review; set to false before launch
+};
+/* Hanzo grows up with the player's best daily streak and never shrinks back.
+   Stages follow the book series: Vol 1 baby, Vol 2 teen, Vol 3 grown-up. */
+const STAGES = [
+  { k: "baby", name: "Baby Hanzo", at: 0 },
+  { k: "teen", name: "Teen Hanzo", at: 7 },
+  { k: "grown", name: "Grown-up Hanzo", at: 30 }
+];
+const TEEN = [{"t":"Teething","p":["t00.webp","t01.webp","t02.webp","t03.webp","t04.webp"]},{"t":"Shedding season","p":["t06.webp","t07.webp","t09.webp","t12.webp","t14.webp"]},{"t":"Fetch champion","p":["t08.webp","t10.webp","t11.webp","t13.webp","t17.webp","t18.webp","t19.webp","t20.webp"]},{"t":"Hiking trails","p":["t15.webp","t16.webp","t15.webp","t16.webp"]},{"t":"Learning to swim","p":["t21.webp","t22.webp","t23.webp","t21.webp"]},{"t":"Dog park friends","p":["t24.webp","t25.webp","t26.webp","t27.webp","t28.webp","t29.webp"]},{"t":"First snow","p":["t30.webp","t32.webp","t33.webp","t30.webp"]},{"t":"Chewed shoes","p":["t34.webp","t35.webp","t36.webp","t34.webp"]},{"t":"Testing the rules","p":["t37.webp","t38.webp","t39.webp","t40.webp"]},{"t":"Obedience school","p":["t41.webp","t42.webp","t41.webp","t42.webp"]},{"t":"Big puppy energy","p":["t43.webp","t44.webp","t45.webp","t46.webp","t47.webp"]},{"t":"Growing paws","p":["t48.webp","t49.webp","t50.webp","t51.webp","t52.webp","t53.webp","t54.webp"]}];
+const GAMES = {"sudoku":[{"p":"056701038080360502423900007500006820809243700271500060718090043005810070090007005","s":"956721438187364592423958617534176829869243751271589364718695243345812976692437185"},{"p":"892000405350020609064500820203760000908000000640910200020300096506200700030605182","s":"892176435357824619164539827213768954978452361645913278421387596586291743739645182"},{"p":"500281900043009052910500067029007300030000208700002090360490020051020780090175004","s":"576281943843769152912534867629847315134956278785312496367498521451623789298175634"},{"p":"704000001026719340198400067072106089009075003350900000000364890000827034803091002","s":"734682951526719348198453267472136589689275413351948726217364895965827134843591672"},{"p":"030618920094523100001794080200031600000007351170900200010000806058069002300080700","s":"537618924894523167621794583245831679986247351173956248412375896758169432369482715"},{"p":"000670952270900080050002400007023800802100567009708004740050019603480705120000600","s":"381674952274935186956812473467523891832149567519768234748256319693481725125397648"},{"p":"592601300040000000000507091860475032009312050025860710904108200016004580280056009","s":"592641378147983625638527491861475932479312856325869714954138267716294583283756149"},{"p":"478069020000047608900208010145900267800025001007410850703000002601070000090001076","s":"478169325512347698936258714145983267869725431327416859753694182681572943294831576"},{"p":"000200637200947801580100492605000004008060970304710000706350040039001005850070300","s":"941285637263947851587136492675893124128564973394712568716358249439621785852479316"},{"p":"790405016830001700510007098000620000089703602607059030200314569000092087051870003","s":"792485316834961725516237498345628971189743652627159834278314569463592187951876243"},{"p":"705002000102054600300010529029037160050240390430968275004600010080009006010020000","s":"765392841192854637348716529829537164657241398431968275574683912283179456916425783"},{"p":"007605030020070986960400017308004120106000748004010069532007600009300204001020050","s":"817695432425173986963482517398764125156239748274518369532847691689351274741926853"},{"p":"068530400235741009047809050050927083801053720023618500000180930004000010509000040","s":"968532471235741869147869352456927183891453726723618594672184935384295617519376248"},{"p":"500008400479000801802100007706840003200015070030906040301457680050009014948600000","s":"513768492479523861862194537796842153284315976135976248321457689657289314948631725"},{"p":"734000000006580007100074000921650004060400029400021050009710200580342691300069005","s":"734196582296583417158274963921658374865437129473921856649715238587342691312869745"},{"p":"004691002109030004350700001020060048497180205681004973005010420018406300240075000","s":"874691532169532784352748691523967148497183265681254973735819426918426357246375819"},{"p":"094802000502009048008437259006000300420300680370260094003000070860900413009003060","s":"794852136532619748618437259986574321425391687371268594243186975867925413159743862"},{"p":"100207596000003107007950020610594370900076004000000600005042931096700200240009705","s":"134287596529463187867951423618594372952376814473128659785642931396715248241839765"},{"p":"300006005904053107007091460472968351030504086800100240698700504000300600703005900","s":"321476895964853127587291463472968351139524786856137249698712534215349678743685912"},{"p":"200150070004907031713462859000010792090726305000004600000070000041200960007840020","s":"289153476654987231713462859436518792198726345572394618325679184841235967967841523"},{"p":"009010205002009300070254860705490601036025070900637020000580090800300056007046002","s":"689713245542869317173254869725498631436125978918637524264581793891372456357946182"},{"p":"080100040070326080501498307750009010024710860006830054000561430030074100102003605","s":"283157946479326581561498327758649213324715869916832754897561432635274198142983675"},{"p":"050800093940010700317206450009001004180709030020540000830907040000080519490060307","s":"256874193948315762317296458579631824184729635623548971831957246762483519495162387"},{"p":"050900270940050008020617009008000394090036702132709080206070035480090007070005800","s":"651984273947352168823617459768521394594836712132749586216478935485193627379265841"},{"p":"491387000256000030387200109900503870148700305070600092700002503005070004809035607","s":"491387256256194738387256149962543871148729365573618492714962583635871924829435617"},{"p":"045980071016050800083060000028790000300640728074830050000000940002076005037010286","s":"245983671916257834783164592128795463359641728674832159561328947892476315437519286"},{"p":"196000003087000050003000401009002645870640010605019270020008536934500000068020104","s":"196254783487136952253987461319872645872645319645319278721498536934561827568723194"},{"p":"251007490980420060400090208503704102728300645600000009072040306109030800065070024","s":"251687493987423561436591278593764182728319645614852739872945316149236857365178924"},{"p":"010456070006182094024039106689501700073804005000007060000010000007200030302978050","s":"918456372736182594524739186689521743273864915451397268895613427167245839342978651"},{"p":"206050084070892516581047300704005000050001000000730805047326158630008002000500000","s":"296153784473892516581647329764985231358261497129734865947326158635418972812579643"}],"xword":[{"g":[".........K..","....H....I..","...CURIOUS..",".L..N....S.F",".O..GENTLE.L",".Y..R.E..S.U","HAPPY.W....F",".L.U..H....F","...P.GOODBOY","...P..M.....","...Y.WETNOSE"],"c":[{"n":1,"d":"D","r":0,"c":9,"a":"KISSES","q":"Puppy licks, given with love (6)"},{"n":2,"d":"D","r":1,"c":4,"a":"HUNGRY","q":"Ready for a bowl of kibble (6)"},{"n":3,"d":"A","r":2,"c":3,"a":"CURIOUS","q":"Wanting to sniff out everything (7)"},{"n":4,"d":"D","r":3,"c":1,"a":"LOYAL","q":"Faithful, like every Akita (5)"},{"n":5,"d":"D","r":3,"c":11,"a":"FLUFFY","q":"Covered in soft fur (6)"},{"n":6,"d":"A","r":4,"c":4,"a":"GENTLE","q":"Soft and careful (6)"},{"n":7,"d":"D","r":4,"c":6,"a":"NEWHOME","q":"Where a puppy goes to live with a family (3,4)"},{"n":8,"d":"A","r":6,"c":0,"a":"HAPPY","q":"Tail-wagging mood (5)"},{"n":9,"d":"D","r":6,"c":3,"a":"PUPPY","q":"Young dog, like baby Hanzo (5)"},{"n":10,"d":"A","r":8,"c":5,"a":"GOODBOY","q":"What Hanzo hears after he sits (4,3)"},{"n":11,"d":"A","r":10,"c":5,"a":"WETNOSE","q":"Cold, damp sniffer (3,4)"}],"missing":0,"t":"Meet Hanzo"},{"g":["....C........","H..DOUBLECOAT","A...U....U...","C.STRONG.R..J","H...A....L..A","I.S.G.QUIET.P","KENNEL...D..A","O.O...STATION","..W......A...",".....DIGNITY.",".........L..."],"c":[{"n":1,"d":"D","r":0,"c":4,"a":"COURAGE","q":"Bravery (7)"},{"n":2,"d":"D","r":1,"c":0,"a":"HACHIKO","q":"Famous Akita who waited at a train station for years (7)"},{"n":3,"d":"A","r":1,"c":3,"a":"DOUBLECOAT","q":"Two layers of fur that keep an Akita warm (6,4)"},{"n":4,"d":"D","r":1,"c":9,"a":"CURLEDTAIL","q":"An Akita's tail, looped over the back (6,4)"},{"n":5,"d":"A","r":3,"c":2,"a":"STRONG","q":"Powerful and sturdy (6)"},{"n":6,"d":"D","r":3,"c":12,"a":"JAPAN","q":"Country the Akita comes from (5)"},{"n":7,"d":"D","r":5,"c":2,"a":"SNOW","q":"Winter weather Akitas love (4)"},{"n":8,"d":"A","r":5,"c":6,"a":"QUIET","q":"Akitas rarely bark, so they're usually this (5)"},{"n":9,"d":"A","r":6,"c":0,"a":"KENNEL","q":"A dog's shelter, or a breeder's home (6)"},{"n":10,"d":"A","r":7,"c":6,"a":"STATION","q":"Where Hachiko waited each day (7)"},{"n":11,"d":"A","r":9,"c":5,"a":"DIGNITY","q":"Calm, proud manner Akitas are known for (7)"}],"missing":0,"t":"Akita Roots"},{"g":["..HARNESS...","K....A......","I.W..M..B...","BLANKET.O...","B.T..T.TOWEL","L.E..A..T..E","E.R..G..I..A","..B.....E..S","TOOTHBRUSH.H","..W.........",".PLAYPEN...."],"c":[{"n":1,"d":"A","r":0,"c":2,"a":"HARNESS","q":"Straps around the chest for walks (7)"},{"n":2,"d":"D","r":0,"c":5,"a":"NAMETAG","q":"Collar ID that says who he is (4,3)"},{"n":3,"d":"D","r":1,"c":0,"a":"KIBBLE","q":"Dry dog food pieces (6)"},{"n":4,"d":"D","r":2,"c":2,"a":"WATERBOWL","q":"Where he gets a drink (5,4)"},{"n":5,"d":"D","r":2,"c":8,"a":"BOOTIES","q":"Paw covers for snowy sidewalks (7)"},{"n":6,"d":"A","r":3,"c":0,"a":"BLANKET","q":"Cozy cover for the dog bed (7)"},{"n":7,"d":"A","r":4,"c":7,"a":"TOWEL","q":"For drying off after a bath (5)"},{"n":8,"d":"D","r":4,"c":11,"a":"LEASH","q":"Line that connects you and your pup on a walk (5)"},{"n":9,"d":"A","r":8,"c":0,"a":"TOOTHBRUSH","q":"Tool for clean puppy teeth (10)"},{"n":10,"d":"A","r":10,"c":1,"a":"PLAYPEN","q":"Fenced-in play space for a puppy (7)"}],"missing":0,"t":"Puppy Supplies"},{"g":[".CUSHION...","...L...A...","..CURLUP...","...M....D..","...B...COZY","STRETCH.G..","N..R.O..B..","O...SUNBEAM","R....C..D..","E.SIGH....."],"c":[{"n":1,"d":"A","r":0,"c":1,"a":"CUSHION","q":"Soft pillow on the couch (7)"},{"n":2,"d":"D","r":0,"c":3,"a":"SLUMBER","q":"Deep sleep (7)"},{"n":3,"d":"D","r":0,"c":7,"a":"NAP","q":"Short sleep (3)"},{"n":4,"d":"A","r":2,"c":2,"a":"CURLUP","q":"Make yourself into a ball to sleep (4,2)"},{"n":5,"d":"D","r":3,"c":8,"a":"DOGBED","q":"Hanzo's own place to sleep (3,3)"},{"n":6,"d":"A","r":4,"c":7,"a":"COZY","q":"Warm and comfy (4)"},{"n":7,"d":"A","r":5,"c":0,"a":"STRETCH","q":"First thing after waking up (7)"},{"n":7,"d":"D","r":5,"c":0,"a":"SNORE","q":"Noisy sleep sound (5)"},{"n":8,"d":"D","r":5,"c":5,"a":"COUCH","q":"Sofa Hanzo isn't supposed to nap on (5)"},{"n":9,"d":"A","r":7,"c":4,"a":"SUNBEAM","q":"Patch of light that's perfect for napping (7)"},{"n":10,"d":"A","r":9,"c":2,"a":"SIGH","q":"Deep breath let out when settling down (4)"}],"missing":0,"t":"Nap Time"},{"g":["....B......","...TOUCH...","....W.O...S","......M.L.I",".....REPEAT","F.S.....A..","O.HIGHFIVE.","C.A.....E..","U.K..PRAISE","SPEAK...T.."],"c":[{"n":1,"d":"D","r":0,"c":4,"a":"BOW","q":"Trick with front end down and tail up (3)"},{"n":2,"d":"A","r":1,"c":3,"a":"TOUCH","q":"Command to boop your hand with his nose (5)"},{"n":3,"d":"D","r":1,"c":6,"a":"COME","q":"Command to run back to you (4)"},{"n":4,"d":"D","r":2,"c":10,"a":"SIT","q":"First command most puppies learn (3)"},{"n":5,"d":"D","r":3,"c":8,"a":"LEAVEIT","q":"Command to ignore something on the floor (5,2)"},{"n":6,"d":"A","r":4,"c":5,"a":"REPEAT","q":"Do again, and again, to learn (6)"},{"n":7,"d":"D","r":5,"c":0,"a":"FOCUS","q":"Eyes on you (5)"},{"n":8,"d":"D","r":5,"c":2,"a":"SHAKE","q":"Offer a paw (5)"},{"n":9,"d":"A","r":6,"c":2,"a":"HIGHFIVE","q":"Paw-to-hand trick (4,4)"},{"n":10,"d":"A","r":8,"c":5,"a":"PRAISE","q":"Kind words for good behavior (6)"},{"n":11,"d":"A","r":9,"c":0,"a":"SPEAK","q":"Command to bark (5)"}],"missing":0,"t":"Good Boy Lessons"},{"g":["....C.......C","BISCUIT.....A","..I.C...L...R","..T.U..DINNER","..P.M...C...O","..R.BREAKFAST","..E.E......N.","WATERMELON.A.","..T........C.","..Y.....JERKY"],"c":[{"n":1,"d":"D","r":0,"c":4,"a":"CUCUMBER","q":"Cool, crunchy green veggie (8)"},{"n":2,"d":"D","r":0,"c":12,"a":"CARROT","q":"Crunchy orange veggie (6)"},{"n":3,"d":"A","r":1,"c":0,"a":"BISCUIT","q":"Baked dog treat (7)"},{"n":4,"d":"D","r":1,"c":2,"a":"SITPRETTY","q":"Begging pose, sitting up on the back legs (3,6)"},{"n":5,"d":"D","r":2,"c":8,"a":"LICK","q":"What a tongue does to an empty bowl (4)"},{"n":6,"d":"A","r":3,"c":7,"a":"DINNER","q":"Evening meal (6)"},{"n":7,"d":"A","r":5,"c":4,"a":"BREAKFAST","q":"First meal of the day (9)"},{"n":8,"d":"D","r":5,"c":11,"a":"SNACK","q":"Little bite between meals (5)"},{"n":9,"d":"A","r":7,"c":0,"a":"WATERMELON","q":"Summer fruit, served without seeds or rind (10)"},{"n":10,"d":"A","r":9,"c":8,"a":"JERKY","q":"Dried meat snack (5)"}],"missing":0,"t":"Treat Time"},{"g":["..Y....W.S.","..A....O.N.","..W.G.YODEL",".SNORT.F.E.",".Q..O.H..Z.",".U..WHIMPER",".E..L.C....","BARK..C....",".K..THUMP..","......P...."],"c":[{"n":1,"d":"D","r":0,"c":2,"a":"YAWN","q":"Sleepy, wide-open mouth (4)"},{"n":2,"d":"D","r":0,"c":7,"a":"WOOF","q":"A big dog's hello (4)"},{"n":3,"d":"D","r":0,"c":9,"a":"SNEEZE","q":"Achoo! (6)"},{"n":4,"d":"D","r":2,"c":4,"a":"GROWL","q":"Low rumble during tug-of-war (5)"},{"n":5,"d":"A","r":2,"c":6,"a":"YODEL","q":"Singing sound Akitas are known for (5)"},{"n":6,"d":"A","r":3,"c":1,"a":"SNORT","q":"Piggy-sounding nose noise (5)"},{"n":6,"d":"D","r":3,"c":1,"a":"SQUEAK","q":"Sound a toy makes when chewed (6)"},{"n":7,"d":"D","r":4,"c":6,"a":"HICCUP","q":"Little jump in the breath, often after drinking fast (6)"},{"n":8,"d":"A","r":5,"c":4,"a":"WHIMPER","q":"Soft, sad cry (7)"},{"n":9,"d":"A","r":7,"c":0,"a":"BARK","q":"A dog's call (4)"},{"n":10,"d":"A","r":8,"c":4,"a":"THUMP","q":"Sound of a tail hitting the floor (5)"}],"missing":0,"t":"Puppy Sounds"},{"g":["....B.....F","....U...P.R",".TUMBLE.L.I","S...B...A.S","PUZZLETOY.B","R...E...D.E","I...S.CHASE","N.......T..","K..WIGGLE..","L......E...","E.....CATCH","RACE...P..."],"c":[{"n":1,"d":"D","r":0,"c":4,"a":"BUBBLES","q":"Floating soapy balls to snap at (7)"},{"n":2,"d":"D","r":0,"c":10,"a":"FRISBEE","q":"Flying disc (7)"},{"n":3,"d":"D","r":1,"c":8,"a":"PLAYDATE","q":"Meet-up with a dog friend (8)"},{"n":4,"d":"A","r":2,"c":1,"a":"TUMBLE","q":"Roll over and over (6)"},{"n":5,"d":"D","r":3,"c":0,"a":"SPRINKLER","q":"Lawn spray to dash through (9)"},{"n":6,"d":"A","r":4,"c":0,"a":"PUZZLETOY","q":"Toy that hides treats inside (6,3)"},{"n":7,"d":"A","r":6,"c":6,"a":"CHASE","q":"Run after (5)"},{"n":8,"d":"A","r":8,"c":3,"a":"WIGGLE","q":"Wag the whole body (6)"},{"n":9,"d":"D","r":8,"c":7,"a":"LEAP","q":"Big jump (4)"},{"n":10,"d":"A","r":10,"c":6,"a":"CATCH","q":"Grab out of the air (5)"},{"n":11,"d":"A","r":11,"c":0,"a":"RACE","q":"Run against a friend (4)"}],"missing":0,"t":"Playtime"},{"g":["S.....L..A.","Q.FENCE..C.","U.....A..O.","I...B.V..R.","R..PINECONE","R...R.S....","E...D......","LADYBUG....","....A.ROBIN",".DIRT.A....","....HOSE...","......S...."],"c":[{"n":1,"d":"D","r":0,"c":0,"a":"SQUIRREL","q":"Bushy-tailed tree climber (8)"},{"n":2,"d":"D","r":0,"c":6,"a":"LEAVES","q":"They fall in autumn (6)"},{"n":3,"d":"D","r":0,"c":9,"a":"ACORN","q":"Oak nut (5)"},{"n":4,"d":"A","r":1,"c":2,"a":"FENCE","q":"Yard boundary (5)"},{"n":5,"d":"D","r":3,"c":4,"a":"BIRDBATH","q":"Shallow bowl where birds splash (8)"},{"n":6,"d":"A","r":4,"c":3,"a":"PINECONE","q":"Woody cone from an evergreen (8)"},{"n":7,"d":"A","r":7,"c":0,"a":"LADYBUG","q":"Red bug with black spots (7)"},{"n":8,"d":"D","r":7,"c":6,"a":"GRASS","q":"Green lawn blades (5)"},{"n":9,"d":"A","r":8,"c":6,"a":"ROBIN","q":"Red-breasted songbird (5)"},{"n":10,"d":"A","r":9,"c":1,"a":"DIRT","q":"What gets dug up (4)"},{"n":11,"d":"A","r":10,"c":4,"a":"HOSE","q":"Garden water tube (4)"}],"missing":0,"t":"In the Backyard"},{"g":[".MEADOW......","....O........","....G...B..S.",".F..PAWPRINTS",".R..A...E..R.",".EXERCISE..O.",".S..K...Z..L.",".H...P..E..L.","PATH.O.......",".I...NEIGHBOR","FRIEND......."],"c":[{"n":1,"d":"A","r":0,"c":1,"a":"MEADOW","q":"Open grassy field (6)"},{"n":2,"d":"D","r":0,"c":4,"a":"DOGPARK","q":"Fenced spot where dogs run free (3,4)"},{"n":3,"d":"D","r":2,"c":8,"a":"BREEZE","q":"Light wind (6)"},{"n":4,"d":"D","r":2,"c":11,"a":"STROLL","q":"Slow, easy walk (6)"},{"n":5,"d":"D","r":3,"c":1,"a":"FRESHAIR","q":"What you breathe outside (5,3)"},{"n":6,"d":"A","r":3,"c":4,"a":"PAWPRINTS","q":"Marks left in the mud (9)"},{"n":7,"d":"A","r":5,"c":1,"a":"EXERCISE","q":"Activity that keeps a pup fit (8)"},{"n":8,"d":"D","r":7,"c":5,"a":"POND","q":"Small lake with ducks (4)"},{"n":9,"d":"A","r":8,"c":0,"a":"PATH","q":"Trail to walk along (4)"},{"n":10,"d":"A","r":9,"c":5,"a":"NEIGHBOR","q":"Person who lives next door (8)"},{"n":11,"d":"A","r":10,"c":0,"a":"FRIEND","q":"Pal (6)"}],"missing":0,"t":"Walk in the Park"}]}, SUDOKU = GAMES.sudoku, XWORD = GAMES.xword;
+/* --------------------------------------------------- */
+const PUZZLES = [{"n":1,"t":"Meet Hanzo","f":"Puppies are born with their eyes and ears closed. They start to open at about two weeks old.","g":["AHAPPYYNEWHOMER","TNBBDSSFSTETHSA","IPUDDUFWLOYALYS","NKTHLIPEEUEHWWZ","YGTUFTUTGLFUZZY","PWGNSPFNDSLFFYG","AYCGFWEOEOEHYWE","WFURBEESHFLEFTN","SKRYAHOENWSLPWT","NSIFSOFTEARSNAL","YAOSGOODBOYSOZE","UAUUSRTZYPUESNF","YSSWEETAPYMDKGF","EUYHSOSUHOOTWON","ORFSYAPULNOYLUR"],"w":[["TINY PAWS","TINYPAWS",1,0,1,0],["SOFT EARS","SOFTEARS",9,4,0,1],["WET NOSE","WETNOSE",2,7,1,0],["GOOD BOY","GOODBOY",10,4,0,1],["NEW HOME","NEWHOME",0,7,0,1],["CURIOUS","CURIOUS",6,2,1,0],["GENTLE","GENTLE",5,14,1,0],["FLUFFY","FLUFFY",1,7,1,1],["HUNGRY","HUNGRY",3,3,1,0],["KISSES","KISSES",8,1,1,1],["PUPPY","PUPPY",14,6,-1,1],["FUZZY","FUZZY",4,10,0,1],["HAPPY","HAPPY",0,1,0,1],["SWEET","SWEET",12,2,0,1],["LOYAL","LOYAL",2,8,0,1]],"img":"h17.webp","th":["h17.webp","h32.webp","h18.webp","h47.webp"]},{"n":2,"t":"Meet Hanzo","f":"A puppy has 28 baby teeth. A grown dog has 42.","g":["BRAVESLEEPYREHF","USLDLNTUSTEPCVU","AEAKITAENLEGUGR","ISPAGBYNUZEEDYB","WIGGLEOLGUISDUA","GBEYGUIEGUONLNL","YRAIYBFNLLENEUL","SRBSSNONEILLSCV","HGGSLTCURLYTAIL","HLGEKCLFNOYHYGY","AEGNRTTNYCTGTAN","NFIINSTASGYNGGS","ZPPLEWAGGINGEKA","OINBLAUOSLSBSAW","SBPLAYFULNVYUAB"],"w":[["BEST FRIEND","BESTFRIEND",13,3,-1,1],["PINK TONGUE","PINKTONGUE",12,1,-1,1],["CURLY TAIL","CURLYTAIL",8,6,0,1],["FURBALL","FURBALL",0,14,1,0],["WAGGING","WAGGING",12,5,0,1],["PLAYFUL","PLAYFUL",14,2,0,1],["SNUGGLE","SNUGGLE",1,8,1,0],["BIG EYES","BIGEYES",7,2,-1,1],["CUDDLES","CUDDLES",1,12,1,0],["BOUNCY","BOUNCY",6,5,1,1],["WIGGLE","WIGGLE",4,0,0,1],["SLEEPY","SLEEPY",0,5,0,1],["AKITA","AKITA",2,2,0,1],["HANZO","HANZO",9,0,1,0],["BRAVE","BRAVE",0,0,0,1]],"img":"h32.webp","th":["h32.webp","h18.webp","h47.webp","h17.webp"]},{"n":3,"t":"Meet Hanzo","f":"Akita puppies look like little teddy bears, and their famous curled tail grows in as they get older.","g":["EYOBCFBFYSELFPP","BIGEYESUSLIUNFL","WOLCOUOREWPPOUY","ERPSSBABIILBFOE","TTOCOEYAEGUYFAY","NYZPTSSLFGASFBZ","OUVFRLCLLLLIUOE","SLOUEEEWPEOSZUA","ESPFGEPNFUUNYNY","PIUSUPPASOABUCF","LGPBWYTYIHYLTYL","YZPERLZRSBYWZGU","OTYESAUAFUZZYCF","RSOZBCVBPEKFUEF","LEAKITAEEEBLSPY"],"w":[["SOFT EARS","SOFTEARS",8,1,-1,1],["FURBALL","FURBALL",0,7,1,0],["CURIOUS","CURIOUS",13,5,-1,1],["PLAYFUL","PLAYFUL",7,8,-1,1],["BIG EYES","BIGEYES",1,0,0,1],["WET NOSE","WETNOSE",2,0,1,0],["WIGGLE","WIGGLE",2,9,1,0],["SLEEPY","SLEEPY",5,5,1,0],["BOUNCY","BOUNCY",5,13,1,0],["FLUFFY","FLUFFY",9,14,1,0],["BRAVE","BRAVE",10,3,1,1],["PUPPY","PUPPY",8,2,1,0],["FUZZY","FUZZY",12,8,0,1],["HANZO","HANZO",10,9,-1,1],["AKITA","AKITA",14,2,0,1]],"img":"h18.webp","th":["h18.webp","h47.webp","h17.webp","h32.webp"]},{"n":4,"t":"Meet Hanzo","f":"Puppies sleep a lot, often most of the day. Growing up is tiring work.","g":["NSOEUUTGNEWHOME","CTPTEPIFIGLFDEA","UNGGYKLLOYALGYS","DRCURLYTAILYOUO","DYCIRRINNITEOLT","LGLLGHTGENTLEYI","EALNBESTFRIENDN","STUPINKTONGUEDY","GHIWSREAUGSESEP","GOWATGHSNUGGLEA","ICOETESIUHOROEW","GIEDWNGPIEUTORS","OWLYBGELEKTYEDE","SNNYAOYUGKISSES","EEMWEGYEHAPPYLD"],"w":[["BEST FRIEND","BESTFRIEND",6,4,0,1],["PINK TONGUE","PINKTONGUE",7,3,0,1],["CURLY TAIL","CURLYTAIL",3,2,0,1],["TINY PAWS","TINYPAWS",4,14,1,0],["GOOD BOY","GOODBOY",8,0,1,1],["SNUGGLE","SNUGGLE",9,7,0,1],["NEW HOME","NEWHOME",0,8,0,1],["CUDDLES","CUDDLES",1,0,1,0],["WAGGING","WAGGING",14,3,-1,1],["GENTLE","GENTLE",5,7,0,1],["KISSES","KISSES",13,9,0,1],["HUNGRY","HUNGRY",8,1,-1,1],["HAPPY","HAPPY",14,8,0,1],["LOYAL","LOYAL",2,7,0,1],["SWEET","SWEET",13,0,-1,1]],"img":"h47.webp","th":["h47.webp","h17.webp","h32.webp","h18.webp"]},{"n":5,"t":"Akita Roots","f":"The Akita takes its name from Akita Prefecture in the snowy mountains of northern Japan.","g":["CNRRAGDNTAHCBIC","CLRPUCURLEDTAIL","LPUYRRTIIISDEGS","IJERTCACOURAGEE","NACEILISROLMYSE","OPTDPEDIGREELSA","OAPIACSOTELRGTO","SNWGCNHAKLOIIRN","CTONALNAAECCIOQ","TSAITEEMCUNAWNU","CPPTKOSATHUNLGI","BSIYIPMAAEIOEIE","AAGAROGNDEAKGLT","TSMLJSNOWROROCT","ICALMDOUBLECOAT"],"w":[["DOUBLE COAT","DOUBLECOAT",14,5,0,1],["CURLED TAIL","CURLEDTAIL",1,5,0,1],["SMALL EYES","SMALLEYES",10,6,-1,1],["PEDIGREE","PEDIGREE",5,4,0,1],["AMERICAN","AMERICAN",3,11,1,0],["DIGNITY","DIGNITY",5,3,1,0],["COURAGE","COURAGE",3,7,0,1],["STATION","STATION",7,0,1,1],["HACHIKO","HACHIKO",7,6,1,1],["KENNEL","KENNEL",7,8,1,1],["STRONG","STRONG",5,13,1,0],["JAPAN","JAPAN",3,1,1,0],["QUIET","QUIET",8,14,1,0],["SNOW","SNOW",13,5,0,1],["CALM","CALM",14,1,0,1]],"img":"h50.webp","th":["h50.webp","h51.webp","h30.webp","h05.webp"]},{"n":6,"t":"Akita Roots","f":"Hachiko was an Akita who waited at Shibuya Station in Tokyo for his owner for years. A statue of him stands there today.","g":["PSTATUERAHUNSRK","GSLINEAGEUAAEHL","KHNBAUHAAIALAIO","MIARUHNEDTLEEHY","OBEJBEARHEADHLA","UUNHEEAJKSHHOUL","NYSAMUSNAETHAIT","TAHYGEETLPUOINY","AMRESLEBNTABTNI","ITESEHONSHUNSAS","NTHHJNRNTGNLEIG","SHUNTERANENNTSP","AKITAETREASUREE","ARHNLRGITHEENMH","NBSPITZUEBHRNOA"],"w":[["HELEN KELLER","HELENKELLER",10,3,-1,1],["MOUNTAINS","MOUNTAINS",3,0,1,0],["GUARDIAN","GUARDIAN",7,4,-1,1],["TREASURE","TREASURE",12,6,0,1],["BEAR HEAD","BEARHEAD",4,4,0,1],["JAPANESE","JAPANESE",5,7,1,1],["LOYALTY","LOYALTY",1,14,1,0],["LINEAGE","LINEAGE",1,2,0,1],["SHIBUYA","SHIBUYA",1,1,1,0],["HONSHU","HONSHU",9,5,0,1],["HUNTER","HUNTER",11,1,0,1],["STATUE","STATUE",0,1,0,1],["NOBLE","NOBLE",10,5,-1,1],["SPITZ","SPITZ",14,2,0,1],["AKITA","AKITA",12,0,0,1]],"img":"h51.webp","th":["h51.webp","h30.webp","h05.webp","h50.webp"]},{"n":7,"t":"Akita Roots","f":"Helen Keller is credited with bringing the first Akita to the United States in 1937.","g":["UNTSAPTESLAEBEK","BSSHIBUYAOUHUTE","DOUBLECOATUTALN","EDONLTSTAAGDJON","EOILHYWTNNNNANE","DHOGOOSGSSIAPTL","DNNLNUPAUKLSAOA","HZISSIIECAYDNLS","UUGAHSTEAIRNBIB","SYAEUTZYLRADSNB","LLKNHRNGMSINIED","HOUOEOAABIMYHAU","TNOHUNTERSNUOGN","UYAAOGAASNATHEO","SALNUURUTNOBLEN"],"w":[["DOUBLE COAT","DOUBLECOAT",2,0,0,1],["GUARDIAN","GUARDIAN",5,7,1,1],["SHIBUYA","SHIBUYA",1,2,0,1],["DIGNITY","DIGNITY",3,1,1,1],["LINEAGE","LINEAGE",7,13,1,0],["STATUE","STATUE",5,6,-1,1],["HONSHU","HONSHU",4,4,1,0],["HUNTER","HUNTER",12,3,0,1],["STRONG","STRONG",8,5,1,0],["KENNEL","KENNEL",0,14,1,0],["SPITZ","SPITZ",5,6,1,0],["NOBLE","NOBLE",14,9,0,1],["JAPAN","JAPAN",3,12,1,0],["SNOW","SNOW",7,3,-1,1],["CALM","CALM",7,8,1,0]],"img":"h30.webp","th":["h30.webp","h05.webp","h50.webp","h51.webp"]},{"n":8,"t":"Akita Roots","f":"Many countries treat the American Akita and the Japanese Akita Inu as two separate breeds.","g":["HACHIKORLQUIETA","UJAPANESEOEKJLN","EYAKITALOMYREOG","RRKTNGMOUNTAINS","DCURLEDTAILTLHA","RIIIBEARHEADATS","AGAOLRGRRTUHORY","AOATNLEASLUREEI","OATQSAMERICANAA","CEHELENKELLERSA","EHLRRRUYAUTEMUO","QETCRAESHRMAERC","MLCEEIPEDIGREEN","MITPSKCOURAGEAC","SMALLEYESCNADAT"],"w":[["HELEN KELLER","HELENKELLER",9,2,0,1],["CURLED TAIL","CURLEDTAIL",4,1,0,1],["SMALL EYES","SMALLEYES",14,0,0,1],["MOUNTAINS","MOUNTAINS",3,6,0,1],["PEDIGREE","PEDIGREE",12,6,0,1],["AMERICAN","AMERICAN",8,5,0,1],["BEAR HEAD","BEARHEAD",5,4,0,1],["TREASURE","TREASURE",5,13,1,0],["JAPANESE","JAPANESE",1,1,0,1],["STATION","STATION",7,8,-1,1],["HACHIKO","HACHIKO",0,0,0,1],["COURAGE","COURAGE",13,6,0,1],["LOYALTY","LOYALTY",0,8,1,1],["QUIET","QUIET",0,9,0,1],["AKITA","AKITA",2,2,0,1]],"img":"h05.webp","th":["h05.webp","h50.webp","h51.webp","h30.webp"]},{"n":9,"t":"Puppy Supplies","f":"A name tag with your phone number on the collar helps a lost pup get home.","g":["TPLAYPENHBPHTER","BWEROOWATERBOWL","SWLNTORUYAYSHHE","BCEAUPBAPAAYSTH","PHBMEBLANKETHSB","ABCETATTBLBCUPO","ELHTTGRLLASRYRO","GWEAHSEMEBBPNOT","OKWGLWAERHAELPI","YIBLOWTLTEBAEEE","ABOTOOPOTLYAATS","OBNOABOBBTGPSOB","OLEPBTURPEAOHYT","PEHEASCYEPTOTOS","OBARNPHARNESSTH"],"w":[["TOOTHBRUSH","TOOTHBRUSH",12,5,-1,1],["TREAT POUCH","TREATPOUCH",5,6,1,0],["WATER BOWL","WATERBOWL",1,6,0,1],["BABY GATE","BABYGATE",7,10,1,0],["CHEW BONE","CHEWBONE",5,2,1,0],["POOP BAGS","POOPBAGS",0,5,1,0],["HARNESS","HARNESS",14,6,0,1],["BOOTIES","BOOTIES",4,14,1,0],["PLAYPEN","PLAYPEN",0,1,0,1],["BLANKET","BLANKET",4,5,0,1],["ROPE TOY","ROPETOY",6,13,1,0],["NAME TAG","NAMETAG",2,3,1,0],["KIBBLE","KIBBLE",8,1,1,0],["TOWEL","TOWEL",10,3,-1,1],["LEASH","LEASH",8,12,1,0]],"img":"h09.webp","th":["h09.webp","h46.webp","h36.webp","h52.webp"]},{"n":10,"t":"Puppy Supplies","f":"A crate can feel like a cozy den for a puppy when it is set up with a soft bed.","g":["AARGFAOEDWQICWO","ESAEONUTGRSLEKH","PDICOLLARAEHRSY","DSNEDHTLSYSLOEG","YHCEBGSEFULPHEY","IAODOBKMRAYLNOD","EMADWRMBBOTPTCI","DPTULOMSTRAWTRO","QOPGBOIYOCESWAB","ROGYCNKRMHQTBTR","WTSBNAILCLIPPER","EGAEEPEEPADSQPS","OTTUHDLETLLPIFA","DAQERPPWCAMFOPS","ASCEENMASWEATER"],"w":[["NAIL CLIPPER","NAILCLIPPER",10,4,0,1],["SQUEAKY TOY","SQUEAKYTOY",14,1,-1,1],["TENNIS BALL","TENNISBALL",12,2,-1,1],["FOOD BOWL","FOODBOWL",0,4,1,0],["RAINCOAT","RAINCOAT",0,2,1,0],["SHAMPOO","SHAMPOO",3,1,1,0],["PEE PADS","PEEPADS",11,5,0,1],["CHEW TOY","CHEWTOY",10,8,-1,1],["SWEATER","SWEATER",14,8,0,1],["DOG TAG","DOGTAG",6,3,-1,1],["COLLAR","COLLAR",2,3,0,1],["DOG BED","DOGBED",7,0,1,1],["CRATE","CRATE",6,13,1,0],["BRUSH","BRUSH",6,7,-1,1],["COMB","COMB",9,4,-1,1]],"img":"h46.webp","th":["h46.webp","h36.webp","h52.webp","h09.webp"]},{"n":11,"t":"Puppy Supplies","f":"Chew toys help puppies when their adult teeth are coming in.","g":["TSQUEAKYTOYSSET","HKKIBBLECNDHIKE","RMENIWTRAECEMSC","SNEATNUBBUOFCAO","PATFOODBOWLAHHL","SDGONROPETOYEAT","ORGSYATTSHBIWRL","EKEGYAMAHWUSTNE","ETSGELOEHBEDOEY","EUARROARTLRAYSW","ITTAPCOLLARUTSB","LPRMODOGTAGGSEL","BNAILCLIPPERAHR","LHKUSWBLANKETOA","SOEEGQHOEASUPQT"],"w":[["NAIL CLIPPER","NAILCLIPPER",12,1,0,1],["TOOTHBRUSH","TOOTHBRUSH",3,4,1,1],["SQUEAKY TOY","SQUEAKYTOY",0,1,0,1],["TREAT POUCH","TREATPOUCH",10,2,-1,1],["FOOD BOWL","FOODBOWL",4,3,0,1],["SWEATER","SWEATER",6,8,1,1],["HARNESS","HARNESS",4,13,1,0],["NAME TAG","NAMETAG",5,4,1,1],["CHEW TOY","CHEWTOY",3,12,1,0],["ROPE TOY","ROPETOY",5,5,0,1],["SHAMPOO","SHAMPOO",14,0,-1,1],["BLANKET","BLANKET",13,6,0,1],["DOG TAG","DOGTAG",11,5,0,1],["COLLAR","COLLAR",10,5,0,1],["KIBBLE","KIBBLE",1,2,0,1]],"img":"h36.webp","th":["h36.webp","h52.webp","h09.webp","h46.webp"]},{"n":12,"t":"Puppy Supplies","f":"Fresh, clean water should always be easy for a puppy to reach.","g":["CRATEWEORLALOTG","LANEBTRCBGWBDOU","LIOGBPOOPBAGSWT","ENWGNPRMOWTEDEL","NCIOAWIBWOEEWLP","WOGPATTATARDHEL","IABELETBTEBBSEA","OTREANHYUEOOGBY","EDCPSNOGDTWOPOP","COPAPILALBLTOLE","IGTDBSNTEEEIBLN","RBRSRBBEAAAEEAB","NELHUALBSLCSPAE","EDEDSLECHEWBONE","EDETHLLTPEWNCCE"],"w":[["TENNIS BALL","TENNISBALL",5,5,1,0],["WATER BOWL","WATERBOWL",1,10,1,0],["RAINCOAT","RAINCOAT",0,1,1,0],["CHEW BONE","CHEWBONE",13,7,0,1],["BABY GATE","BABYGATE",4,7,1,0],["POOP BAGS","POOPBAGS",2,5,0,1],["PLAYPEN","PLAYPEN",4,14,1,0],["BOOTIES","BOOTIES",6,11,1,0],["PEE PADS","PEEPADS",5,3,1,0],["DOG BED","DOGBED",8,1,1,0],["BRUSH","BRUSH",10,4,1,0],["TOWEL","TOWEL",0,13,1,0],["CRATE","CRATE",0,0,0,1],["LEASH","LEASH",9,8,1,0],["COMB","COMB",1,7,1,0]],"img":"h52.webp","th":["h52.webp","h09.webp","h46.webp","h36.webp"]},{"n":13,"t":"Nap Time","f":"Dogs dream, much like people. Twitching paws during sleep may mean a pup is dreaming.","g":["RSOTSESSOFTDMCS","TEEZWDSMRSRCTIS","EBRCEOSUSTENCBN","RNNSETRTNDBRSOC","NEDCTLBBDBNTIHC","UEDHDRAECGEHGNU","OSNOREESPKSAHAR","TNLBEOHTNUEEMPL","TUCUABOACCUHEOU","EGONMHLOBHDSBSP","ROZUSBEUSUOSHHU","DOYTMBEPMEORPTL","SRSNDSRREMGOUIC","ORETBUCOUCHNNNE","CESDOGBEDRSPNBM"],"w":[["SWEET DREAMS","SWEETDREAMS",0,4,1,0],["STRETCH","STRETCH",3,3,1,1],["BLANKET","BLANKET",10,5,-1,1],["SLUMBER","SLUMBER",6,1,1,1],["CUSHION","CUSHION",8,8,-1,1],["SUNBEAM","SUNBEAM",1,6,1,1],["CURL UP","CURLUP",4,14,1,0],["DOG BED","DOGBED",14,3,0,1],["SNORE","SNORE",6,1,0,1],["COUCH","COUCH",13,6,0,1],["SNUG","SNUG",6,1,1,0],["COZY","COZY",8,2,1,0],["SIGH","SIGH",3,12,1,0],["SOFT","SOFT",0,7,0,1],["NAP","NAP",5,13,1,0]],"img":"h13.webp","th":["h13.webp","h06.webp","h31.webp","h24.webp"]},{"n":14,"t":"Nap Time","f":"Dogs often turn in a circle before lying down.","g":["MPLRLYQYYZSUAAT","YMITIAWLBWOBTAW","NCALMGIDMQUIETI","DHCALOYRMEQUWLT","LOEIEOANZIDTSAC","NRZEDDWGYQTHUSH","DELEHNNDEIWPIOL","MLGDLIEWAOHNAEH","MAILTGCATNAPNYN","YXIALHLULLABYXS","MPOORTLIYOLILGI","CYWOYHAGICSUNME","HOSNOOZEOBAADAU","HLGOTBEDTIMEOAB","QRXXAEAAOCWARMO"],"w":[["GOODNIGHT","GOODNIGHT",2,5,1,0],["LULLABY","LULLABY",9,6,0,1],["BEDTIME","BEDTIME",13,5,0,1],["PILLOW","PILLOW",0,1,1,1],["SNOOZE","SNOOZE",12,2,0,1],["TWITCH","TWITCH",0,14,1,0],["CATNAP","CATNAP",8,6,0,1],["QUIET","QUIET",2,9,0,1],["DREAM","DREAM",6,0,-1,1],["RELAX","RELAX",5,1,1,0],["CALM","CALM",2,1,0,1],["HUSH","HUSH",5,11,0,1],["DOZE","DOZE",3,0,1,1],["WARM","WARM",14,10,0,1],["YAWN","YAWN",3,6,1,0]],"img":"h06.webp","th":["h06.webp","h31.webp","h24.webp","h13.webp"]},{"n":15,"t":"Nap Time","f":"Puppies need far more sleep than grown dogs to help them grow.","g":["BSNOREESIGHSRCD","THEDTSBHMCUUHII","CTMDDWBETYCECTH","IOBCTESIDOGBEDE","OUZEAEWUOTCGAEH","HHHYWTCSWWIOUCO","MESCEDNYISTMUAD","EBHIHRQAQSEOEMO","SLUMBERBPMCUYHZ","CQDDTADDRSTEDTE","RRZMLMEDTSSGTOZ","CYILRSHBISMESCH","QOTACHRESIMEHSU","WDWASTRETCHEABS","EEEUBGAOTRAITOH"],"w":[["SWEET DREAMS","SWEETDREAMS",1,5,1,0],["SLUMBER","SLUMBER",8,0,0,1],["BEDTIME","BEDTIME",1,6,1,1],["STRETCH","STRETCH",13,4,0,1],["DOG BED","DOGBED",3,8,0,1],["CATNAP","CATNAP",3,3,1,1],["TWITCH","TWITCH",5,5,-1,1],["QUIET","QUIET",9,1,-1,1],["SNORE","SNORE",0,1,0,1],["COUCH","COUCH",8,10,-1,1],["HUSH","HUSH",11,14,1,0],["DOZE","DOZE",6,14,1,0],["SIGH","SIGH",0,7,0,1],["COZY","COZY",2,0,1,1],["WARM","WARM",13,2,-1,1]],"img":"h31.webp","th":["h31.webp","h24.webp","h13.webp","h06.webp"]},{"n":16,"t":"Nap Time","f":"Curling into a ball helps a dog stay warm while it sleeps.","g":["LTRCCUWSWWWADAE","FDESUNBEAMAUSAT","PULMBRZASCYALHC","NNAABOLUOUNAUOD","MNXAOSMULSMLWOX","SHLNNENRPHOSONA","BLSLGLUUSISFOUB","BSMIUOYNGOSTTNO","PILLOWOTANEZSAL","LURDEGEDDKLKMPM","GUASLCZSNXENWCL","YUWLDREAMISWEON","UKAFCALMIYGRUAA","EMLRNBSSEOHHRAE","SKLULLABYAZWTWF"],"w":[["GOODNIGHT","GOODNIGHT",6,4,1,1],["BLANKET","BLANKET",13,5,-1,1],["CUSHION","CUSHION",2,9,1,0],["SUNBEAM","SUNBEAM",1,3,0,1],["LULLABY","LULLABY",14,2,0,1],["SNOOZE","SNOOZE",6,2,-1,1],["CURL UP","CURLUP",0,3,1,1],["PILLOW","PILLOW",8,0,0,1],["DREAM","DREAM",11,4,0,1],["RELAX","RELAX",0,2,1,0],["CALM","CALM",12,4,0,1],["SNUG","SNUG",4,5,1,1],["SOFT","SOFT",4,9,1,1],["YAWN","YAWN",2,10,1,1],["NAP","NAP",7,13,1,0]],"img":"h24.webp","th":["h24.webp","h13.webp","h06.webp","h31.webp"]},{"n":17,"t":"Good Boy Lessons","f":"Short, happy training sessions work best for puppies. A few minutes at a time is plenty.","g":["EOEEGOODBOYSOOM","OMEFOCUSMEPLLSA","SLHLEAVLLEESVPY","OTOOBAIETEIOTEE","AOEOETESSEROEAT","BUIKPTLIVEOEPKO","ACASILAEODVISPC","YHOSAROPFIUKAIH","SHUMPOEAFROFLSB","SUSKEFPHPHSVOLO","SPEPSDGLEAVEITW","MIREAIUHKHALKRE","LHCCHOREPEATEIU","SIUMATASAFLOIPS","POIPKCSOHHECTRP"],"w":[["SMALL STEPS","SMALLSTEPS",9,2,-1,1],["HIGH FIVE","HIGHFIVE",12,4,-1,1],["GOOD BOY","GOODBOY",0,4,0,1],["LEAVE IT","LEAVEIT",10,7,0,1],["PRAISE","PRAISE",8,4,-1,1],["REPEAT","REPEAT",12,6,0,1],["SHAKE","SHAKE",8,0,-1,1],["TOUCH","TOUCH",3,1,1,0],["FOCUS","FOCUS",1,3,0,1],["SPEAK","SPEAK",1,13,1,0],["LOOK","LOOK",2,3,1,0],["COME","COME",6,1,1,1],["SIT","SIT",7,3,-1,1],["OFF","OFF",6,8,1,0],["BOW","BOW",8,14,1,0]],"img":"h01.webp","th":["h01.webp","h26.webp","h18.webp","h31.webp"]},{"n":18,"t":"Good Boy Lessons","f":"Rewarding a puppy right after it does the right thing helps it learn what you want.","g":["EQNBLPQPIYPRYTT","WPAWLWYDRWIHEEL","NHPDOTBRGCECPTA","SEPSDROPITNPSRO","ECIROLLOVERSCTA","RVCCLARIISDAACY","TTDOOYRTETLOITC","REWARDALRAEEWPL","GESNPPTHWYLCRNI","OIPUPPYCLASSNSC","QUIETWEDARIUPUK","APNESDTEKOETYYE","REOCGOTOBEDBICR","PACBEAAPRACTICE","VREDOYRCAACWOCE"],"w":[["PUPPY CLASS","PUPPYCLASS",9,2,0,1],["PATIENCE","PATIENCE",8,5,-1,1],["ROLL OVER","ROLLOVER",4,3,0,1],["PRACTICE","PRACTICE",13,7,0,1],["GO TO BED","GOTOBED",12,4,0,1],["CLICKER","CLICKER",6,14,1,0],["REWARD","REWARD",7,0,0,1],["DROP IT","DROPIT",3,4,0,1],["QUIET","QUIET",10,0,0,1],["WAIT","WAIT",8,8,1,1],["DOWN","DOWN",5,10,1,1],["STAY","STAY",5,9,1,0],["HEEL","HEEL",1,11,0,1],["SPIN","SPIN",8,2,1,0],["PAW","PAW",1,1,0,1]],"img":"h26.webp","th":["h26.webp","h18.webp","h31.webp","h01.webp"]},{"n":19,"t":"Good Boy Lessons","f":"Many trainers teach sit first, because it is easy for puppies to learn.","g":["LEOEAPEIAPEYPPK","EPRWLLCCLICKERW","LPFDESKIPESSEOL","TAPLEOLDRSIHBGO","WPROFFECOAPEKCS","CDATEOSORBEECOL","LICBAPUPPYCLASS","ESTAYUAARAETSKC","OAIEWOFYDDOSCYO","LOCULOELERKPODM","ODEOUCIBYEOHPYE","LPAOOIOITLKPGBC","ORPPRTOSPICLISG","OEOGOODBOYDEETT","KTAGRAOPAIBPAWE"],"w":[["PUPPY CLASS","PUPPYCLASS",6,5,0,1],["PRACTICE","PRACTICE",3,2,1,0],["CLICKER","CLICKER",1,7,0,1],["GO TO BED","GOTOBED",14,3,-1,1],["GOOD BOY","GOODBOY",13,3,0,1],["DROP IT","DROPIT",8,8,1,1],["PRAISE","PRAISE",6,7,-1,1],["SPEAK","SPEAK",3,9,1,1],["LOOK","LOOK",11,0,1,0],["COME","COME",7,14,1,0],["STAY","STAY",7,1,0,1],["HEEL","HEEL",3,11,1,0],["BOW","BOW",3,12,-1,1],["PAW","PAW",14,11,0,1],["OFF","OFF",4,3,0,1]],"img":"h18.webp","th":["h18.webp","h31.webp","h01.webp","h26.webp"]},{"n":20,"t":"Good Boy Lessons","f":"Meeting new people, places, and sounds while young helps a puppy grow into a confident dog.","g":["TTRTRWAISUIFSEE","LRIISARHAEDRVTE","EFEOPOPDOWNDAVE","SSSLIASQAETRISS","HOMEGRWDEINFEIL","AATALOLAAIHINOT","KOEVLLEWPGLVVFI","EOEETLPSITNKNER","EPTIEOSHLWFLHTE","FORTEVUTWROIECW","SPATIENCEECIHAA","ACUETRLIHPUEFLR","ISUKREUUIQSRGED","UIIOREPEATTSRNC","RNWOTQTTVEDOHNT"],"w":[["SMALL STEPS","SMALLSTEPS",3,1,1,1],["ROLL OVER","ROLLOVER",4,5,1,0],["PATIENCE","PATIENCE",10,1,0,1],["HIGH FIVE","HIGHFIVE",8,7,-1,1],["LEAVE IT","LEAVEIT",3,3,1,0],["REPEAT","REPEAT",13,4,0,1],["REWARD","REWARD",7,14,1,0],["FOCUS","FOCUS",8,10,1,0],["QUIET","QUIET",12,9,-1,1],["TOUCH","TOUCH",7,4,1,1],["SHAKE","SHAKE",3,0,1,0],["SPIN","SPIN",7,7,-1,1],["WAIT","WAIT",6,7,-1,1],["DOWN","DOWN",2,7,0,1],["SIT","SIT",7,7,0,1]],"img":"h31.webp","th":["h31.webp","h01.webp","h26.webp","h18.webp"]},{"n":21,"t":"Treat Time","f":"Grapes, raisins, chocolate, onions, and the sweetener xylitol are dangerous for dogs.","g":["KNSDHAJOCIEKLWE","EFRUBPESUEBKRWE","TLIRIPRWCERCFPC","DKCWSLKAUEBDYEN","EOEPCEYTMSNIFFK","NSRPUSBEBWSNDBC","TSATILTREKTNCRA","AIULTIEMRILETBT","LTPBRCNELRIRLTP","CPBFIEWLICCKONC","HROASISONSKRLEN","EEWWCEANANRLYTN","WTLBREAKFASTSDS","TTTYIOIBCCINMTS","RYAFRDLFIKMNATN"],"w":[["APPLE SLICE","APPLESLICE",0,5,1,0],["DENTAL CHEW","DENTALCHEW",3,0,1,0],["WATERMELON","WATERMELON",2,7,1,0],["BREAKFAST","BREAKFAST",12,3,0,1],["SIT PRETTY","SITPRETTY",6,1,1,0],["CUCUMBER","CUCUMBER",0,8,1,0],["BISCUIT","BISCUIT",1,4,1,0],["DINNER","DINNER",3,11,1,0],["CARROT","CARROT",13,8,-1,1],["JERKY","JERKY",0,6,1,0],["SNIFF","SNIFF",4,9,0,1],["SNACK","SNACK",10,9,1,0],["LICK","LICK",7,10,1,0],["RICE","RICE",1,2,1,0],["BOWL","BOWL",9,2,1,0]],"img":"h09.webp","th":["h09.webp","h51.webp","h41.webp","h06.webp"]},{"n":22,"t":"Treat Time","f":"Plain cooked pumpkin and carrots are common healthy snacks for dogs.","g":["LOOEEGREENBEANS","NOYEBSOWHIISKKE","AICRUNCHYIYERLR","TILSTNSNNONPEAS","UBWABANANAMLTUW","RTPHBLGYLTEUTSE","KLOUTLCSRMNAOME","ECUYMCUCNNOEAET","YHPTAPREWRMNTAP","IEPYEOKBBPKHMLO","TWEEUCHIIEHOETT","CYOEIMPENIREAIA","EHYHTEMOOAORLMT","RECRUCCYUCRUYEO","MHAPORTIONLRMUR"],"w":[["SWEET POTATO","SWEETPOTATO",3,14,1,0],["GREEN BEANS","GREENBEANS",0,5,0,1],["BLUEBERRY","BLUEBERRY",5,4,1,1],["MEALTIME","MEALTIME",6,13,1,0],["CHICKEN","CHICKEN",13,2,-1,1],["PORTION","PORTION",14,3,0,1],["CRUNCHY","CRUNCHY",2,2,0,1],["OATMEAL","OATMEAL",6,12,1,0],["PUMPKIN","PUMPKIN",5,2,1,1],["TURKEY","TURKEY",3,0,1,0],["SALMON","SALMON",3,6,1,1],["BANANA","BANANA",4,4,0,1],["CHEWY","CHEWY",7,1,1,0],["YUMMY","YUMMY",9,3,1,1],["PEAS","PEAS",3,11,0,1]],"img":"h51.webp","th":["h51.webp","h41.webp","h06.webp","h09.webp"]},{"n":23,"t":"Treat Time","f":"Treats should be a small part of what a puppy eats each day.","g":["DRRRCPEATSYRSTS","IEIEINBRYEARWTI","NRARTCRINPEPEII","NESANIELSNPEEFB","EPEEACACICPNTAC","RNBYPHKSSTUCPET","KSLAPOFNELMIORI","IIISLCAINSPRTEC","TTCHEHSFBBKBAIA","UPKBSETFRNITTKR","RRTRLWOTFRNFORR","KECEIYOATLLNIEO","ETSCCRUNCHYFELT","YTOSEYYAINERFYE","NYEPOHBANANAATR"],"w":[["SWEET POTATO","SWEETPOTATO",0,12,1,0],["APPLE SLICE","APPLESLICE",4,4,1,0],["BREAKFAST","BREAKFAST",1,6,1,0],["SIT PRETTY","SITPRETTY",6,1,1,0],["CRUNCHY","CRUNCHY",12,4,0,1],["BISCUIT","BISCUIT",1,6,1,1],["PUMPKIN","PUMPKIN",4,10,1,0],["BANANA","BANANA",14,6,0,1],["DINNER","DINNER",0,0,1,0],["TURKEY","TURKEY",8,0,1,0],["CARROT","CARROT",7,14,1,0],["SNIFF","SNIFF",5,7,1,0],["CHEWY","CHEWY",7,5,1,0],["RICE","RICE",0,3,1,1],["LICK","LICK",6,2,1,0]],"img":"h41.webp","th":["h41.webp","h06.webp","h09.webp","h51.webp"]},{"n":24,"t":"Treat Time","f":"Remove the seeds and core before sharing apple slices with a dog.","g":["MYOYHMORUWBASME","YMBOWLEEWAWELCO","PRERUMNOTTWEMUB","EDENTALCHEWNECL","AOESALMONRYNAUE","SUSLJMOATMEALMC","SMYJEEUUMETETBR","NOELRBSUELOYIEL","AKSSKOYWTOOWMRR","CTEAYDCMLNSPENR","KRLKWLRLEAMIMWO","AEGREENBEANSMNE","UOOMMPORTIONBCB","WCNCECHICKENKOK","BLUEBERRYPBSCSY"],"w":[["DENTAL CHEW","DENTALCHEW",3,1,0,1],["WATERMELON","WATERMELON",0,9,1,0],["GREEN BEANS","GREENBEANS",11,2,0,1],["BLUEBERRY","BLUEBERRY",14,0,0,1],["MEALTIME","MEALTIME",2,12,1,0],["CUCUMBER","CUCUMBER",1,13,1,0],["CHICKEN","CHICKEN",13,5,0,1],["PORTION","PORTION",12,5,0,1],["OATMEAL","OATMEAL",5,6,0,1],["SALMON","SALMON",4,3,0,1],["YUMMY","YUMMY",8,6,-1,1],["SNACK","SNACK",6,0,1,0],["JERKY","JERKY",5,4,1,0],["PEAS","PEAS",2,0,1,0],["BOWL","BOWL",1,2,0,1]],"img":"h06.webp","th":["h06.webp","h09.webp","h51.webp","h41.webp"]},{"n":25,"t":"Puppy Sounds","f":"Akitas are known as fairly quiet dogs that do not bark much without a reason.","g":["STMUSAUIYROEFON","ERRRQPOUNHNEQUF","EOQEUKOUPWIAAQT","GOMCEOEMATEERRH","ERCOAQLYAUPEEPF","WIRFKECAEMAPFCW","HPARDFORURMTNRM","WWOOFONHAIRDEOE","ESYIRZTOHAALEKW","BHNAEAHWISNEEZE","GSNOPNSSPAOPMMP","LYSARCGGROWLONR","EORYPTSCEORNIER","SPCDYAKBARKALAU","OLPCHHPFOOLRACR"],"w":[["WHIMPER","WHIMPER",9,7,-1,1],["HICCUP","HICCUP",6,0,-1,1],["SNEEZE","SNEEZE",9,9,0,1],["SQUEAK","SQUEAK",0,4,1,0],["GROWL","GROWL",11,7,0,1],["YODEL","YODEL",8,2,-1,1],["SNORT","SNORT",8,1,1,1],["THUMP","THUMP",8,6,-1,1],["SNIFF","SNIFF",10,1,-1,1],["WOOF","WOOF",7,1,0,1],["BARK","BARK",13,7,0,1],["AROO","AROO",9,3,-1,1],["YAWN","YAWN",4,7,-1,1],["ARF","ARF",2,12,1,1],["YAP","YAP",8,2,1,1]],"img":"h02.webp","th":["h02.webp","h12.webp","h38.webp","h13.webp"]},{"n":26,"t":"Puppy Sounds","f":"Some Akitas make funny grumbling sounds that owners call talking.","g":["HRLEMWAYSRNETTE","LPKRSSLNFPKNOCL","BOCAGLETTTALKCI","FLPIEHSEWPPRUEC","HOWLINGNYTIPPSK","IECHNNMLOSTTRNR","NTGRIGSPKRTILHC","ENFKONPHNKENRNR","AILGPREHTLRYIPU","TAMTSIGHBNPGGGN","TPRISLPMHTANUCC","BTIROHUFFGTALHH","GHUFHRGRROTIPOM","CSTRGYFPPGEHHMR","PPLRRTICLURKRPO"],"w":[["PITTER PATTER","PITTERPATTER",3,10,1,0],["GRUMBLE","GRUMBLE",13,4,-1,1],["TALKING","TALKING",10,0,-1,1],["CRUNCH","CRUNCH",6,14,1,0],["SLURP","SLURP",9,4,1,1],["CHOMP","CHOMP",10,13,1,0],["SNORE","SNORE",3,6,1,1],["WHINE","WHINE",4,2,1,1],["GULP","GULP",9,12,1,0],["PANT","PANT",3,9,-1,1],["HOWL","HOWL",4,0,0,1],["LICK","LICK",1,14,1,0],["HUFF","HUFF",11,5,0,1],["SIGH","SIGH",9,4,0,1],["YIP","YIP",8,11,0,1]],"img":"h12.webp","th":["h12.webp","h38.webp","h13.webp","h02.webp"]},{"n":27,"t":"Puppy Sounds","f":"Puppies sometimes get hiccups, and they usually pass on their own.","g":["ALIFFHYCAOFHTNY","FAOWYOEWHEPITPS","OOFYHUFFPFNHGNK","WONAECIFWFSYSUY","KNHWYITHUMPALFN","OHWNSCCAPPNPINM","HIKIQNSOYYNACNY","EYPEULROHOEWKWH","SNOREFNAKFYEFCI","PYCDASCCCQIFEAC","FUOLKFNIIEPTNUP","NYWTALKINGHIWMH","IIREONSIFESROEC","ASTIAEHAIFUHHOT","EUNNLWNOHECKWHN"],"w":[["TALKING","TALKING",11,3,0,1],["CRUNCH","CRUNCH",9,2,-1,1],["SQUEAK","SQUEAK",5,4,1,0],["YODEL","YODEL",11,1,-1,1],["SNIFF","SNIFF",9,5,1,1],["SNORE","SNORE",8,0,0,1],["THUMP","THUMP",4,6,0,1],["WHINE","WHINE",14,5,-1,1],["CHOMP","CHOMP",14,10,-1,1],["LICK","LICK",4,12,1,0],["HUFF","HUFF",2,4,0,1],["YAWN","YAWN",2,3,1,0],["WOOF","WOOF",3,0,-1,1],["YAP","YAP",3,11,1,0],["YIP","YIP",8,10,1,0]],"img":"h38.webp","th":["h38.webp","h13.webp","h02.webp","h12.webp"]},{"n":28,"t":"Puppy Sounds","f":"A happy tail can make a loud thump thump on the floor.","g":["GULPURPUAPTPMGE","EAGHICCUPSLURPP","OFREPTTEWTLPOOL","URUTBNTNAWHOKRI","OPMIAOTEOSRRWPE","ABBPRMRHRAHRPSI","SALUKHWMEPWOWNS","NOERWPZMAIAPHEU","OETAWHSLCEKTAEC","RTWITFILITPTTZF","TZHTRRSMCPGBSEL","EOOAPHEIPTTGWLR","TIICLHRLGESSBRR","PGLLABSHRHRRRBE","BTRLABPGROWLSOO"],"w":[["PITTER PATTER","PITTERPATTER",0,3,1,1],["WHIMPER","WHIMPER",7,4,1,1],["GRUMBLE","GRUMBLE",1,2,1,0],["HICCUP","HICCUP",1,3,0,1],["SNEEZE","SNEEZE",5,13,1,0],["GROWL","GROWL",14,7,0,1],["SLURP","SLURP",1,9,0,1],["SNORT","SNORT",6,0,1,0],["SIGH","SIGH",10,6,1,1],["GULP","GULP",0,0,0,1],["AROO","AROO",5,9,-1,1],["HOWL","HOWL",5,7,-1,1],["PANT","PANT",5,3,-1,1],["BARK","BARK",3,4,1,0],["ARF","ARF",11,3,-1,1]],"img":"h13.webp","th":["h13.webp","h02.webp","h12.webp","h38.webp"]},{"n":29,"t":"Playtime","f":"A play bow, with front legs down and tail end up, is a dog's way of saying let's play.","g":["WGHIDEANDSEEKET","WIGGLEBSALRUELL","OFBDLEEDLLSTHWF","EGIGGLEAPWGEYLR","DSSEBCLEGEDMZTS","TIPBALGHFCHASEE","UEURRCLMRMFCPGT","MBAAISNMIETDUAE","BRULHNHESHEEZUL","LOEGUEKPBMCLZGF","EMSNUFFLEMATLUU","LPAGBISREDTSEDE","WEAMOEEUERCATRR","IYPLAYDATEHSOEE","YRLFAREEBFBAYPE"],"w":[["HIDE AND SEEK","HIDEANDSEEK",0,2,0,1],["SNUFFLE MAT","SNUFFLEMAT",10,2,0,1],["PUZZLE TOY","PUZZLETOY",6,12,1,0],["SPRINKLER","SPRINKLER",4,1,1,1],["PLAYDATE","PLAYDATE",13,2,0,1],["FRISBEE","FRISBEE",5,8,1,0],["BUBBLES","BUBBLES",7,1,-1,1],["TUMBLE","TUMBLE",5,0,1,0],["GIGGLE","GIGGLE",3,1,0,1],["WIGGLE","WIGGLE",1,0,0,1],["CATCH","CATCH",9,10,1,0],["CHASE","CHASE",5,9,0,1],["ROMP","ROMP",8,1,1,0],["LEAP","LEAP",3,5,0,1],["RACE","RACE",6,3,-1,1]],"img":"h00.webp","th":["h00.webp","h19.webp","h25.webp","h24.webp"]},{"n":30,"t":"Playtime","f":"Zoomies are sudden bursts of happy running. Many puppies get them in the evening.","g":["TUFCOASAEKYIALC","WCETOEQCNAIIFOW","TDKLRONSWLUEIES","PBBSQUEAKBOUNCE","WAAOOAPELUBUDEL","FLHPEEUAOETWICI","RLAUEBPNFOUOTST","NAPKEUENRGFWPOW","NFWLSOEFOYUOWER","ERRGAGKCLENITRA","BEEEGYAOIWEESFO","FESUAUBBCPEOSEC","PLTPEZOOMIESETE","WPLENTONWEOLOCP","AZETFLETATSTAHA"],"w":[["KEEP AWAY","KEEPAWAY",7,3,-1,1],["PEEKABOO","PEEKABOO",6,6,1,0],["WRESTLE","WRESTLE",8,2,1,0],["ZOOMIES","ZOOMIES",12,5,0,1],["PLAY BOW","PLAYBOW",7,2,1,1],["POUNCE","POUNCE",5,3,-1,1],["SQUEAK","SQUEAK",3,3,0,1],["FIND IT","FINDIT",1,12,1,0],["FROLIC","FROLIC",6,8,1,0],["BOUNCE","BOUNCE",3,9,0,1],["FETCH","FETCH",10,13,1,0],["TOSS","TOSS",14,9,-1,1],["BALL","BALL",3,1,1,0],["TUG","TUG",12,2,-1,1],["FUN","FUN",7,10,1,0]],"img":"h19.webp","th":["h19.webp","h25.webp","h24.webp","h00.webp"]},{"n":31,"t":"Playtime","f":"Sniffing games tire a puppy out, because using the nose is hard work for the brain.","g":["CHASENNMMTSSLEY","YBAAEOTNOACATFC","RYYSCLCSBLNAPZH","LFEITSNFAKMPTEH","ZOPTBUBBLESURCF","IOULSREOLEGZAMH","OEOCPCTFSPFZEOK","HTCMRZFITABLNKG","KLMUIUSNFWWESTP","LNIENEWDRAITBOB","TLCSKFSIOYGOSST","ETLELMRTLCGYUSO","YKECENLEIELRULP","BYSCRACECPEPSIF","FFSPANCTTFETCHL"],"w":[["SNUFFLE MAT","SNUFFLEMAT",10,3,-1,1],["PUZZLE TOY","PUZZLETOY",3,11,1,0],["SPRINKLER","SPRINKLER",5,4,1,0],["KEEP AWAY","KEEPAWAY",3,9,1,0],["ZOOMIES","ZOOMIES",4,0,1,1],["BUBBLES","BUBBLES",4,4,0,1],["FROLIC","FROLIC",8,8,1,0],["WIGGLE","WIGGLE",8,10,1,0],["FIND IT","FINDIT",6,7,1,0],["CATCH","CATCH",1,10,1,1],["CHASE","CHASE",0,0,0,1],["FETCH","FETCH",14,9,0,1],["TOSS","TOSS",8,13,1,0],["BALL","BALL",2,8,1,0],["RACE","RACE",13,4,0,1]],"img":"h25.webp","th":["h25.webp","h24.webp","h00.webp","h19.webp"]},{"n":32,"t":"Playtime","f":"Puppies need rest between play sessions, so short games are best.","g":["DPOUNCETDGMMKSB","ILEGWTWLOADEYKT","NAEIHBRQRPPMGLU","OYEGIYEUAADGUER","PBPGDDSROMPFGGE","EOBLEPTYMERUELR","EWPEAYLABFDNPYD","KEOENYEAERMYUDP","AELUDNDREIBTBML","BYRTSBPABSOEPTE","OABLEBEWTBAYTUG","OSQUEAKWLEPKHMO","DBEKKHPWEEMEEBU","ARPGNBOUNCEHELW","ABEEBPKQCOAMTEE"],"w":[["HIDE AND SEEK","HIDEANDSEEK",2,4,1,0],["PLAYDATE","PLAYDATE",4,2,1,1],["PEEKABOO","PEEKABOO",4,0,1,0],["FRISBEE","FRISBEE",6,9,1,0],["WRESTLE","WRESTLE",1,6,1,0],["PLAY BOW","PLAYBOW",0,1,1,0],["GIGGLE","GIGGLE",1,3,1,0],["BOUNCE","BOUNCE",13,5,0,1],["POUNCE","POUNCE",0,1,0,1],["SQUEAK","SQUEAK",11,1,0,1],["TUMBLE","TUMBLE",9,13,1,0],["ROMP","ROMP",4,7,0,1],["LEAP","LEAP",8,2,-1,1],["TUG","TUG",10,12,0,1],["FUN","FUN",4,11,1,0]],"img":"h24.webp","th":["h24.webp","h00.webp","h19.webp","h25.webp"]},{"n":33,"t":"In the Backyard","f":"Dogs can see blue and yellow well, but red and green look much the same to them.","g":["APKEITOANDVITEN","EISLEAVESDNNDRE","NNSTFLVGEOAYISA","PELDDDNHSACFSER","KCANRESPQINEUGB","TOWODWEAUNDNWRI","PNNRSEAVINGCEAR","IEAEYICBRETESSD","AGESHKOSRLAWPSB","NTTRCRRNEAESARA","ALEINRNALDYIRFT","OLTRGIDBLYRHRTH","ISRHLCIUOBSBORD","AORHIEROEUQDWSC","DIPIEETRNGGILLE"],"w":[["BIRDBATH","BIRDBATH",4,14,1,0],["PINECONE","PINECONE",0,1,1,0],["SQUIRREL","SQUIRREL",3,8,1,0],["LADYBUG","LADYBUG",8,9,1,0],["SPARROW","SPARROW",7,12,1,0],["GARDEN","GARDEN",8,1,-1,1],["LEAVES","LEAVES",1,3,0,1],["STICK","STICK",12,1,-1,1],["GRASS","GRASS",4,13,1,0],["ACORN","ACORN",6,6,1,0],["ROBIN","ROBIN",9,5,-1,1],["FENCE","FENCE",3,11,1,0],["LAWN","LAWN",3,2,1,0],["DIRT","DIRT",11,6,1,0],["HOSE","HOSE",11,11,1,1]],"img":"h10.webp","th":["h10.webp","h14.webp","h43.webp","h47.webp"]},{"n":34,"t":"In the Backyard","f":"Shade and fresh water help keep a pup cool outside on warm days.","g":["UDWIDDPUDDLEEIR","NTBBEIBIRDHGLDE","UTRRUGPATIOWULN","EASNBGUDFSTBENH","SUNSHINETIPBEAU","WSBWHNLTCIRHPYG","TSWADGSOSGIACPL","EEYTUAHWPEYEIIA","ERAERTATSBAMSCD","DLBRIEDRBNBUNNY","NNBBLIEUNBUDEIA","ELNOLWPUWHEBECR","RPHWOBEBTSDENAD","NADLGLUOIUEHUSW","BIFHICLIBFEERBD"],"w":[["WATER BOWL","WATERBOWL",5,3,1,0],["SUNSHINE","SUNSHINE",4,0,0,1],["DIGGING","DIGGING",0,5,1,0],["FLOWERS","FLOWERS",14,2,-1,1],["PUDDLE","PUDDLE",0,6,0,1],["PICNIC","PICNIC",6,13,1,0],["SHADE","SHADE",6,6,1,0],["PATIO","PATIO",2,6,0,1],["BUNNY","BUNNY",9,10,0,1],["TREE","TREE",7,3,1,1],["BIRD","BIRD",1,6,0,1],["HOLE","HOLE",12,2,-1,1],["GATE","GATE",6,5,1,0],["BEE","BEE",10,9,1,1],["MUD","MUD",8,11,1,0]],"img":"h14.webp","th":["h14.webp","h43.webp","h47.webp","h10.webp"]},{"n":35,"t":"In the Backyard","f":"Digging is a natural dog behavior. Some families give their dog a digging spot of its own.","g":["DWDSUGGRASSUNSL","EULDSNKNAERSBEY","MLDEGULEOSESINF","BDICLGNTQQGEEIS","UTGBKIYOSUASGPV","NOGCHDLCLITUIIE","NGISEERDDRENENH","YTNUMRTYNROEIEW","SUGGASHSIEABLCE","SENFABEDALEEAOU","LWATERBOWLBVBNN","IRTLCNDAELEAVES","NEDMETCESUANIHG","AGNSHADENBIRDEE","DNNNDEEDCQRESAU"],"w":[["WATER BOWL","WATERBOWL",10,1,0,1],["SUNSHINE","SUNSHINE",9,0,-1,1],["PINECONE","PINECONE",4,13,1,0],["SQUIRREL","SQUIRREL",2,9,1,0],["DIGGING","DIGGING",2,2,1,0],["GARDEN","GARDEN",8,3,1,1],["LEAVES","LEAVES",11,9,0,1],["SHADE","SHADE",13,3,0,1],["BUNNY","BUNNY",3,0,1,0],["FENCE","FENCE",9,3,1,1],["GRASS","GRASS",0,6,0,1],["STICK","STICK",8,0,-1,1],["BIRD","BIRD",13,9,0,1],["GATE","GATE",3,10,1,0],["MUD","MUD",2,0,-1,1]],"img":"h43.webp","th":["h43.webp","h47.webp","h10.webp","h14.webp"]},{"n":36,"t":"In the Backyard","f":"A dog's sense of smell is many thousands of times stronger than a person's.","g":["HEHLLSNESUBRCDH","WRLYBPEEESAEECI","PRUBNATDROBINRT","LUPIIREEONPEAND","DLDRHRWBNEHOWFR","DRIDOODRBLBABEO","IBDELWDBRILRHEE","WIPFDECPAIOESTD","OHDRLIITCTSORLN","SCWANGRNIOHLORS","HCRCHICPPATIOLR","STIGDORTDILCTNS","TPRCHDLIRIAABCT","LHICURBEENOTREE","OLNODILADYBUGDL"],"w":[["BIRDBATH","BIRDBATH",2,3,1,1],["SPARROW","SPARROW",0,5,1,0],["LADYBUG","LADYBUG",14,6,0,1],["FLOWERS","FLOWERS",7,3,-1,1],["PUDDLE","PUDDLE",2,0,1,1],["PICNIC","PICNIC",12,1,-1,1],["ROBIN","ROBIN",2,8,0,1],["ACORN","ACORN",12,10,-1,1],["PATIO","PATIO",10,8,0,1],["LAWN","LAWN",6,10,-1,1],["HOLE","HOLE",10,4,1,1],["DIRT","DIRT",11,4,-1,1],["HOSE","HOSE",9,10,-1,1],["TREE","TREE",13,11,0,1],["BEE","BEE",13,6,0,1]],"img":"h47.webp","th":["h47.webp","h10.webp","h14.webp","h43.webp"]},{"n":37,"t":"Walk in the Park","f":"Hot pavement can burn paw pads. If it is too hot for your hand, it is too hot for paws.","g":["HAAEPFRTAWKIRBP","EPMEDHRAEIRAODR","DCAEOSTEPSRPESR","DOOWALKXSDTIFRA","PRGAPDEPEHRRRKS","ANCPNRORSFAEOPO","TEPOANIWESRIRLL","HRPRERLNLARIRWL","SRRCHCKRTRTLEKW","TBFEXERCISEIONO","PRERDEDRDPBDOHD","IECCENEIGHBORXI","PEIRPLTLLRREWOS","AZRTRASHCANEASL","IERDDFWKPBSNRSR"],"w":[["PAWPRINTS","PAWPRINTS",1,1,1,1],["NEIGHBOR","NEIGHBOR",11,5,0,1],["EXERCISE","EXERCISE",9,3,0,1],["FRESH AIR","FRESHAIR",0,5,1,1],["TRASH CAN","TRASHCAN",13,3,0,1],["DOG PARK","DOGPARK",2,0,1,1],["STROLL","STROLL",2,9,1,1],["MEADOW","MEADOW",1,2,1,1],["BREEZE","BREEZE",9,1,1,0],["CORNER","CORNER",2,1,1,0],["FRIEND","FRIEND",5,9,1,1],["STEPS","STEPS",2,5,0,1],["PATH","PATH",4,0,1,0],["WALK","WALK",3,3,0,1],["POND","POND",7,2,-1,1]],"img":"h03.webp","th":["h03.webp","h28.webp","h46.webp","h05.webp"]},{"n":38,"t":"Walk in the Park","f":"Sniffing on a walk lets a dog read news about every other dog that passed by.","g":["ASBEFBETRAILONP","OEEAOLPGKDNENEE","STNROELNIEDHLGR","IBCOTUARFANOCIL","DYHNPEYHILLGROD","ELGFREGEILPKOYU","WRNRIGRNGNSXSSC","ASYSNAOELHYBSLK","LUNPTHUIDTERWSS","KASISPNCHSXIAEI","IROAFODLECPDLSG","LDEUXFNELDLGKLI","CLEAYRGNLEOELSH","FOUNTAINOLREASO","NLHSEUAGPFEEWIN"],"w":[["PLAYGROUND","PLAYGROUND",1,6,1,0],["FOOTPRINTS","FOOTPRINTS",0,4,1,0],["CROSSWALK","CROSSWALK",3,12,1,0],["SIDEWALK","SIDEWALK",2,0,1,0],["FOUNTAIN","FOUNTAIN",13,0,0,1],["EXPLORE","EXPLORE",8,10,1,0],["BRIDGE","BRIDGE",7,11,1,0],["LEASH","LEASH",12,1,-1,1],["HELLO","HELLO",9,8,1,0],["SNIFF","SNIFF",7,1,1,1],["GEESE","GEESE",12,6,-1,1],["BENCH","BENCH",0,2,1,0],["TRAIL","TRAIL",0,7,0,1],["DUCKS","DUCKS",4,14,1,0],["HILL","HILL",4,7,0,1]],"img":"h28.webp","th":["h28.webp","h46.webp","h05.webp","h03.webp"]},{"n":39,"t":"Walk in the Park","f":"Puppies should build up to longer walks slowly as they grow.","g":["LEIETRCLRSEAWBS","EOBPYHILLERTTRT","AYRSLGRBESESSEO","SAINNAEOKSRTTEP","HFDRSWYESINWEZT","BIGPSLRGSIDMREK","NREGMRCOREEBCEC","OTXLESOPPOOIBLO","SEENARTKESUKTYE","DERBDOSONYENDNR","LOCROSSWALKLDSP","CPIFWOBENCHLOUS","WSSSBNEIGHBOREA","OPEOERRCFPEYMEP","HPFIBTWSIDEWALK"],"w":[["PLAYGROUND","PLAYGROUND",1,3,1,1],["FOOTPRINTS","FOOTPRINTS",11,3,-1,1],["CROSSWALK","CROSSWALK",10,2,0,1],["SIDEWALK","SIDEWALK",14,7,0,1],["EXERCISE","EXERCISE",6,2,1,0],["NEIGHBOR","NEIGHBOR",12,5,0,1],["CORNER","CORNER",11,0,-1,1],["BRIDGE","BRIDGE",1,2,1,0],["BREEZE","BREEZE",0,13,1,0],["MEADOW","MEADOW",6,4,1,0],["BENCH","BENCH",11,6,0,1],["STEPS","STEPS",8,0,-1,1],["GEESE","GEESE",2,5,1,1],["LEASH","LEASH",0,0,1,0],["HILL","HILL",1,5,0,1]],"img":"h46.webp","th":["h46.webp","h05.webp","h03.webp","h28.webp"]},{"n":40,"t":"Walk in the Park","f":"Always ask before letting a puppy greet another dog or a new person.","g":["SCTNRCDFSHNLPSL","UDAHRLDOOFIIRLP","FSAALCNAFUKARTD","ORCKIAFISSNSLRK","TREPPDNTDRRTNED","ROPSNSNEPTPEANH","APREHIRENSSXOIA","IOITRASHCANPINN","LRAPSFIAAHDLTTD","FPWWRTLREEOOHNR","LAFRADRPNLGRHTK","PKOFNLEOCLPELOF","FPRIWALKLOAPAPT","ADUCKSERELRFRKS","ANROSASCIPKDNSA"],"w":[["PAWPRINTS","PAWPRINTS",11,0,-1,1],["FOUNTAIN","FOUNTAIN",0,7,1,1],["FRESH AIR","FRESHAIR",2,0,1,1],["TRASH CAN","TRASHCAN",7,3,0,1],["DOG PARK","DOGPARK",8,10,1,0],["EXPLORE","EXPLORE",5,11,1,0],["FRIEND","FRIEND",9,0,-1,1],["STROLL","STROLL",8,4,1,1],["TRAIL","TRAIL",4,0,1,0],["SNIFF","SNIFF",5,5,-1,1],["HELLO","HELLO",8,9,1,0],["DUCKS","DUCKS",13,1,0,1],["WALK","WALK",12,4,0,1],["POND","POND",7,11,-1,1],["PATH","PATH",9,1,-1,1]],"img":"h05.webp","th":["h05.webp","h03.webp","h28.webp","h46.webp"]},{"n":41,"t":"Butterflies and Bugs","f":"Monarch butterfly caterpillars feed on milkweed plants.","g":["MEADOWYLMYSEEEE","BMFEEBELBMUBUOB","TETOTNEEGIMWBRE","LOEMONSEOLMBFEE","MEMOUOAMNKEBBDE","OTCTOOODMWRSUIB","IOBHEAADEEEBTPY","CSYDSIIWEEBRTSE","IEBOSGRTEDUCEFN","EYLYDENLBFFRREO","EMRLWYNILEHEFYH","NMOORIDOWOELLOM","UEBSBMWEMFHTYOD","WYENUECIHWBSLOR","YEEMRBEFISEEOET"],"w":[["BUMBLEBEE","BUMBLEBEE",1,11,0,-1],["BUTTERFLY","BUTTERFLY",4,12,1,0],["HONEYBEE","HONEYBEE",10,14,-1,0],["MILKWEED","MILKWEED",1,9,1,0],["COCOON","COCOON",7,0,-1,1],["SUMMER","SUMMER",0,10,1,0],["MEADOW","MEADOW",0,0,0,1],["BEETLE","BEETLE",9,8,1,1],["SPIDER","SPIDER",7,13,-1,0],["FLOWER","FLOWER",9,9,1,-1],["WINGS","WINGS",11,8,-1,-1],["DAISY","DAISY",5,7,1,-1],["MOTH","MOTH",3,3,1,0],["ANT","ANT",4,6,-1,-1],["WEB","WEB",5,9,-1,1]],"img":"h27.webp","th":["h27.webp","h37.webp","h42.webp","h52.webp"]},{"n":42,"t":"Butterflies and Bugs","f":"A caterpillar forms a chrysalis and comes out as a butterfly.","g":["CRICKETOGTRSERM","YSOUNSRUUARCEBR","RWORNLBCLACPAEO","UAAADYNLANPATYW","NLIEDTIFPOVTTND","MLLAGPAPHIULFAL","ROLRRRASRLLRYIY","YWNERPSMFEOOSIL","RTTAOAORCDRODTF","OANSRATCENGWNFN","CICGRCPLUAAATNO","CLOVERHAODUYPUG","AAYLTNLCOYALASA","TALSILASYRHCVNR","IUENFIREFLYFRAD"],"w":[["CATERPILLAR","CATERPILLAR",10,0,-1,1],["SWALLOWTAIL","SWALLOWTAIL",1,1,1,0],["GRASSHOPPER","GRASSHOPPER",10,3,-1,1],["DANDELION","DANDELION",11,9,-1,0],["DRAGONFLY","DRAGONFLY",14,14,-1,0],["CHRYSALIS","CHRYSALIS",13,11,0,-1],["FLUTTER","FLUTTER",7,8,-1,1],["FIREFLY","FIREFLY",14,4,0,1],["CRICKET","CRICKET",0,0,0,1],["MONARCH","MONARCH",5,0,1,1],["LADYBUG","LADYBUG",6,2,-1,1],["NECTAR","NECTAR",9,9,0,-1],["CLOVER","CLOVER",11,0,0,1],["SNAIL","SNAIL",1,5,1,-1],["WORM","WORM",3,14,-1,0]],"img":"h37.webp","th":["h37.webp","h42.webp","h52.webp","h27.webp"]},{"n":43,"t":"Butterflies and Bugs","f":"Fireflies make their own light to signal to each other.","g":["EOAADDGCYDGALPO","FAISDMONARCHFIF","WYEADONNYDPRIEE","ATAEOEDGRUEEWOS","UMHLSERAIUDPIHG","WWERLEGEFHEPONN","OYRIDOPGMMEOANI","DYOANMMOEMYHDRW","ANTFLBREWMUSCGM","EYLFERIFFIBSNHM","MYHWYLANECTARYE","FIMDGUBYDALRERH","MFDHTOMAOHDGIEN","WEHPRYSIADDACDH","SHMREAOSNAILDWD"],"w":[["GRASSHOPPER","GRASSHOPPER",12,11,-1,0],["DANDELION","DANDELION",0,9,1,-1],["DRAGONFLY","DRAGONFLY",2,9,1,-1],["FIREFLY","FIREFLY",9,7,0,-1],["LADYBUG","LADYBUG",11,10,0,-1],["MONARCH","MONARCH",1,5,0,1],["SUMMER","SUMMER",9,11,-1,-1],["NECTAR","NECTAR",10,7,0,1],["MEADOW","MEADOW",10,0,-1,0],["WINGS","WINGS",7,14,-1,0],["SNAIL","SNAIL",14,7,0,1],["DAISY","DAISY",13,9,0,-1],["MOTH","MOTH",12,6,0,-1],["ANT","ANT",8,0,0,1],["WEB","WEB",10,3,-1,1]],"img":"h42.webp","th":["h42.webp","h52.webp","h27.webp","h37.webp"]},{"n":44,"t":"Butterflies and Bugs","f":"It is safest to keep puppies from eating bugs, since some can sting or upset a tummy.","g":["UIIESYLFRETTUBF","FEESREREOLLOOME","COECWFSTLTOLRTR","FACBCNLPHAIOYHS","LETIYOOUIAWYBEI","OBEEIEROTDLLEIL","WIDFRENWCTEBUIA","EEYDEPOOEOERELS","RREHBLIWHLCRTRY","EOCRLEALBLTOLTR","VOIAOWEMLOEREBH","ORWTLHUTHABOLNC","LSEBIBPTLFRROLL","CLCRICKETEICNEA","ESRACFLDEEWKLIM"],"w":[["CATERPILLAR","CATERPILLAR",2,0,1,1],["SWALLOWTAIL","SWALLOWTAIL",12,1,-1,1],["BUMBLEBEE","BUMBLEBEE",12,5,-1,1],["BUTTERFLY","BUTTERFLY",0,13,0,-1],["CHRYSALIS","CHRYSALIS",11,14,-1,0],["MILKWEED","MILKWEED",14,14,0,-1],["HONEYBEE","HONEYBEE",8,8,-1,-1],["CRICKET","CRICKET",13,2,0,1],["FLUTTER","FLUTTER",2,5,1,1],["SPIDER","SPIDER",2,6,1,1],["BEETLE","BEETLE",8,4,1,1],["FLOWER","FLOWER",3,0,1,0],["CLOVER","CLOVER",13,0,-1,0],["COCOON","COCOON",8,10,-1,-1],["WORM","WORM",4,10,-1,1]],"img":"h52.webp","th":["h52.webp","h27.webp","h37.webp","h42.webp"]},{"n":45,"t":"Bath Day","f":"Akitas have a thick double coat with a soft undercoat and a coarser outer coat.","g":["HOCLWBEBEDSBFLD","BDUNDEENUOELDYA","PSSTIADRIPUODIH","NHHTABRUSFSWFYN","DABERNRDFLBDLHA","YMWIDEFYAUORNCS","HPEIBDACFOSYDSE","ROTYSLITALLECUL","ROOLNINNPODRHAB","IBWESDODGPUBLBB","NAELCEGGBBBHBYU","SRLHBUUDRYOFFDB","EYEUFTFRHBUEIUU","NBNYEEODNBUBRDW","TSUHSALPSRLTRED"],"w":[["BLOW DRYER","BLOWDRYER",0,11,1,0],["SHEDDING","SHEDDING",2,1,1,1],["SHAMPOO","SHAMPOO",2,1,1,0],["BUBBLES","BUBBLES",11,14,-1,0],["FLUFFY","FLUFFY",0,12,1,-1],["SPLASH","SPLASH",14,8,0,-1],["DRY OFF","DRYOFF",11,7,0,1],["CLEAN","CLEAN",10,4,0,-1],["SCRUB","SCRUB",6,13,1,-1],["TREAT","TREAT",3,3,1,1],["TOWEL","TOWEL",7,2,1,0],["RINSE","RINSE",8,0,1,0],["BATH","BATH",3,5,0,-1],["DRIP","DRIP",2,6,0,1],["TUB","TUB",14,11,-1,-1]],"img":"h20.webp","th":["h20.webp","h21.webp","h29.webp","h31.webp"]},{"n":46,"t":"Bath Day","f":"Akitas shed heavily a couple of times a year. People call this blowing the coat.","g":["SRNRCAWSOAPKEFA","HRAUALOAHNOMISR","SNSFTAOCREDNUAH","ERDARDEDGMWRDSE","RREARCLEANWYETM","FFRPIHYNRCSAENG","NDTUYOEGUHWSTOM","LSMDSRDSHINYOEI","IMHDIONASEEDSSR","MMILAYATUOBHOET","YRAEGNOPSOHSACL","AKOOBNPOYKTUKRI","EDABMOCRSBARIPA","DONHOWMTTSOBLUN","ESSHAKEECIRAODK"],"w":[["WARM WATER","WARMWATER",0,6,1,1],["UNDERCOAT","UNDERCOAT",2,12,0,-1],["NAIL TRIM","NAILTRIM",13,14,-1,0],["EAR CLEAN","EARCLEAN",4,2,0,1],["GOOD BOY","GOODBOY",5,14,1,-1],["SPONGE","SPONGE",10,8,0,-1],["PUDDLE","PUDDLE",5,3,1,0],["SHINY","SHINY",7,7,0,1],["SOAPY","SOAPY",7,4,1,1],["SHAKE","SHAKE",14,2,0,1],["FRESH","FRESH",5,0,-1,0],["BRUSH","BRUSH",13,11,-1,0],["COMB","COMB",12,6,0,-1],["SOAK","SOAK",8,12,1,0],["FUR","FUR",2,3,-1,0]],"img":"h21.webp","th":["h21.webp","h29.webp","h31.webp","h20.webp"]},{"n":47,"t":"Bath Day","f":"Regular brushing helps remove loose fur and keeps a coat healthy.","g":["CBOSOOSPONGEKPT","FFCEHPPBBOAASCM","RMPURAERUSORCHN","EIFAOFTTRSOOANC","SYFCUOFKCEHFURE","HPLABGCOSURRKKC","MAKMTRMAYAFIORP","ROAOIBBUYRROYYS","SSNMNRLPBODEFOB","BSMPUBTUCMRDOCH","GHOSSONLROSPBUC","FFHHWRERIAMAFFF","SBARWARMWATERAB","UKFUNEEBHWNLCAY","EFUCEHNSELBBUBR"],"w":[["WARM WATER","WARMWATER",12,4,0,1],["NAIL TRIM","NAILTRIM",13,10,-1,-1],["SHAMPOO","SHAMPOO",14,7,-1,1],["BUBBLES","BUBBLES",14,13,0,-1],["DRY OFF","DRYOFF",8,10,-1,-1],["SPONGE","SPONGE",0,6,0,1],["FRESH","FRESH",1,0,1,0],["CLEAN","CLEAN",9,8,1,-1],["BRUSH","BRUSH",7,6,1,-1],["SOAPY","SOAPY",8,1,-1,0],["SCRUB","SCRUB",5,8,-1,0],["SHAKE","SHAKE",10,4,1,-1],["SOAK","SOAK",3,9,-1,1],["COMB","COMB",4,8,1,-1],["FUR","FUR",4,11,0,1]],"img":"h29.webp","th":["h29.webp","h31.webp","h20.webp","h21.webp"]},{"n":48,"t":"Bath Day","f":"Dogs shake off water quickly, so keep a towel close at bath time.","g":["RBYTIGIONNDNUOO","NGRUATFDOTTTSOY","ARRBBESSHINYPOA","IHOELYREHOTPLAR","YOTLOYRTAEDUACY","BHAEWESNIRDDSFL","ADIODTTEISCDHRR","IPLWRAOPGEULIEH","AENLYOELYOCEENY","HEDFECHAFOOWLAG","LTHURRLWFLIDHBN","UOALEECFUEEOBHE","ARRBNDDBLLTWNOD","TRRUYNNWFHUOOIY","ENDBTUAPOULILTF"],"w":[["UNDERCOAT","UNDERCOAT",14,5,-1,0],["BLOW DRYER","BLOWDRYER",2,4,1,0],["SHEDDING","SHEDDING",2,7,1,1],["EAR CLEAN","EARCLEAN",3,7,1,1],["GOOD BOY","GOODBOY",7,8,1,1],["PUDDLE","PUDDLE",3,11,1,0],["FLUFFY","FLUFFY",13,8,-1,0],["SPLASH","SPLASH",1,12,1,0],["RINSE","RINSE",5,9,0,-1],["TREAT","TREAT",4,7,-1,-1],["TOWEL","TOWEL",14,13,-1,-1],["SHINY","SHINY",2,7,0,1],["DRIP","DRIP",4,10,1,-1],["BATH","BATH",12,3,-1,-1],["TUB","TUB",0,3,1,0]],"img":"h31.webp","th":["h31.webp","h20.webp","h21.webp","h29.webp"]},{"n":49,"t":"Animal Friends","f":"A baby dog is a puppy, a baby cat is a kitten, and a baby horse is a foal.","g":["EEEFCAARGIPEUTG","EANAEOREEDLLEOC","BCBLKPATAGITEON","AUNEOALTLLGRCUF","DECTAOGOIACUGKB","IGBRLENHNCLTCCU","TEFFARIGAGTLCIE","IRCOPENGUINCCHG","NHLNAEBOUPALICE","EOAONLRFRAHORKL","NATEDABREEPULPU","OCIRACCOONEKEFC","EONUABTGNILKCUD","NAOOEDAKGUECEDR","EEEFNCNRUGEAIEL"],"w":[["GUINEA PIG","GUINEAPIG",14,9,-1,0],["DUCKLING","DUCKLING",12,14,0,-1],["ELEPHANT","ELEPHANT",13,10,-1,0],["PENGUIN","PENGUIN",7,4,0,1],["RACCOON","RACCOON",11,3,0,1],["GIRAFFE","GIRAFFE",6,7,0,-1],["BEAR CUB","BEARCUB",8,6,-1,-1],["TURTLE","TURTLE",5,11,-1,0],["KOALA","KOALA",2,4,1,0],["PANDA","PANDA",7,4,1,0],["CHICK","CHICK",8,13,-1,0],["OTTER","OTTER",4,7,-1,0],["FOAL","FOAL",6,2,1,1],["DEER","DEER",1,9,0,-1],["FROG","FROG",9,7,1,0]],"img":"h44.webp","th":["h44.webp","h34.webp","h33.webp","h24.webp"]},{"n":50,"t":"Animal Friends","f":"Puppies and kittens raised together often grow up to be good friends.","g":["HWLIKNUMPIHCDTG","OPKPTYBSRKFFTBG","LKLEHOFTLBOTOAC","IASISMGHUXBPRPP","UDXPITYNNUBMRTR","SRPIFIKPIULHALE","NUGGDNLECQUWPLS","EETLLMFRPKHPGML","IRTEOHEDGEHOGIG","TIRTGGLOEEABWRL","CFTLIOSDETMDXLF","OINTLKEAOHSUFLD","MLWGUECLNOTKAUC","NGTFMMIERPECLRL","OCYHSCSQUIRRELC"],"w":[["TIGER CUB","TIGERCUB",11,3,-1,1],["CHIPMUNK","CHIPMUNK",0,11,0,-1],["HEDGEHOG","HEDGEHOG",8,5,0,1],["SQUIRREL","SQUIRREL",14,6,0,1],["GOLDFISH","GOLDFISH",9,4,-1,0],["HAMSTER","HAMSTER",8,10,1,0],["PIGLET","PIGLET",4,3,1,0],["PARROT","PARROT",6,12,-1,0],["KITTEN","KITTEN",11,5,-1,-1],["BUNNY","BUNNY",4,10,0,-1],["GOAT","GOAT",7,12,1,-1],["CALF","CALF",13,11,-1,1],["LAMB","LAMB",6,13,-1,-1],["FOX","FOX",1,11,1,-1],["OWL","OWL",8,11,1,1]],"img":"h34.webp","th":["h34.webp","h33.webp","h24.webp","h44.webp"]},{"n":51,"t":"Animal Friends","f":"Dogs were the first animals that people tamed, many thousands of years ago.","g":["AETRHATREUIIIEN","EUUNGAGRFLACRLE","IPRNRANEFLBCAEM","IATETEIRALUAUPL","LDLEERLORUCAUHT","BCEELDKKITRPKAO","LERUGPCNGEAEINE","LUGOIUUEULENTTR","TURTPRDGLMBGLIT","NGGTAOULNDPULGE","OGEECHICKNIITEH","KENRDCRIELCNHRR","CPNNUTKTUKAPOCL","TTURPIIPIKNCAUO","LEAACNRACCOONBU"],"w":[["DUCKLING","DUCKLING",8,6,-1,0],["TIGER CUB","TIGERCUB",7,13,1,0],["ELEPHANT","ELEPHANT",0,13,1,0],["CHIPMUNK","CHIPMUNK",12,13,-1,-1],["PENGUIN","PENGUIN",5,11,1,0],["BEAR CUB","BEARCUB",8,10,-1,0],["RACCOON","RACCOON",14,6,0,1],["GIRAFFE","GIRAFFE",6,8,-1,0],["PIGLET","PIGLET",8,4,-1,0],["TURTLE","TURTLE",0,2,1,0],["OTTER","OTTER",7,3,1,0],["CHICK","CHICK",10,4,0,1],["KOALA","KOALA",5,6,-1,1],["DEER","DEER",5,5,-1,-1],["CALF","CALF",1,11,0,-1]],"img":"h33.webp","th":["h33.webp","h24.webp","h44.webp","h34.webp"]},{"n":52,"t":"Animal Friends","f":"Calm, slow meetings help a puppy make friends with other pets.","g":["OTGPAETAAAGPAAA","DFRUMANTHAYAEGL","PBFGIDNOATNNIAF","NLAGPNBROONDRIE","GASTOUERGOUAKNH","OOORAASAEOBDBLS","MFUDIDRPPTBAHAI","LFYETEHLRISQHMF","KOOGIONWTIGMYBD","IETLOGDOUODXANL","TEMGSQUIRRELHHO","TILTTTPFIOOOFEG","EORMTGOATBLNFSI","NGTGAXAEGGSRMER","LSAHEDGEHOGGREO"],"w":[["GUINEA PIG","GUINEAPIG",0,2,1,1],["SQUIRREL","SQUIRREL",10,4,0,1],["GOLDFISH","GOLDFISH",11,14,-1,0],["HEDGEHOG","HEDGEHOG",14,3,0,1],["HAMSTER","HAMSTER",10,13,-1,-1],["PARROT","PARROT",6,7,-1,0],["KITTEN","KITTEN",8,0,1,0],["PANDA","PANDA",0,11,1,0],["BUNNY","BUNNY",5,10,-1,0],["FROG","FROG",11,7,-1,1],["LAMB","LAMB",5,13,1,0],["GOAT","GOAT",12,5,0,1],["FOAL","FOAL",6,1,-1,0],["OWL","OWL",9,7,-1,0],["FOX","FOX",11,7,1,-1]],"img":"h24.webp","th":["h24.webp","h44.webp","h34.webp","h33.webp"]},{"n":53,"t":"At the Vet","f":"Puppies get a series of vaccines during their first months to help keep them healthy.","g":["CARREMLAEEMGREG","OHTRHOLXBPSWESV","TEMPERATUREEOOT","EOEKHMTHEALTHYN","EEYSTETHOSCOPET","HHAAYGTBTCHPSVE","ANBRSDROCERTSSE","OLTOEANOTTRRSPT","ETPEVKEXWGPEEVX","ITAEPRCORIEABSH","ETNVNEOISTNTRPO","WEIGHTEETCEGARE","OGESRUNETSAWVES","OSTYHAEMIOSHOTS","VVACCINESETEAWE"],"w":[["STETHOSCOPE","STETHOSCOPE",4,3,0,1],["TEMPERATURE","TEMPERATURE",2,0,0,1],["EXAM TABLE","EXAMTABLE",0,8,1,-1],["VACCINE","VACCINE",14,1,0,1],["STICKER","STICKER",12,9,-1,-1],["RECORDS","RECORDS",6,10,0,-1],["GROWING","GROWING",5,5,1,1],["HEALTHY","HEALTHY",3,7,0,1],["WEIGHT","WEIGHT",11,0,0,1],["BRAVE","BRAVE",5,7,1,-1],["TREAT","TREAT",6,11,1,0],["TEETH","TEETH",11,8,0,-1],["SHOTS","SHOTS",13,10,0,1],["NURSE","NURSE",12,6,0,-1],["PAWS","PAWS",10,13,1,-1]],"img":"h45.webp","th":["h45.webp","h49.webp","h07.webp","h06.webp"]},{"n":54,"t":"At the Vet","f":"A microchip is a tiny chip under the skin that can help reunite a lost pet with its family.","g":["ERRPOPILLOLKENE","ALSNTCECEEARIRL","AAEWTCARRIERIES","PIYPGTTPUKCEHCI","PHEARTBEATANRNC","OHWAITINGROOMOO","IEGHAAOPSGMDSNH","NUEOMTTIRNCLTIE","TCNOEEOHUETLOPW","MRTPVLACETIAHCC","EILLVALOTMRRTLL","NMEIRCNREAEELEI","TLWGESMCOENOBSN","PALYTWRIAWIDGLI","ACPCITOMEEHVRHC"],"w":[["APPOINTMENT","APPOINTMENT",2,0,1,0],["WAITING ROOM","WAITINGROOM",5,2,0,1],["MICROCHIP","MICROCHIP",14,7,-1,0],["HEARTBEAT","HEARTBEAT",4,1,0,1],["LOLLIPOP","LOLLIPOP",0,10,0,-1],["CHECKUP","CHECKUP",3,13,0,-1],["CARRIER","CARRIER",2,5,0,1],["ALL DONE","ALLDONE",9,11,-1,0],["GENTLE","GENTLE",6,2,1,0],["CLINIC","CLINIC",9,14,1,0],["SCALE","SCALE",12,5,-1,0],["EARS","EARS",3,11,1,-1],["CALM","CALM",14,1,-1,0],["EYES","EYES",4,2,-1,0],["VET","VET",9,4,-1,1]],"img":"h49.webp","th":["h49.webp","h07.webp","h06.webp","h45.webp"]},{"n":55,"t":"At the Vet","f":"Weighing a puppy at checkups shows how well it is growing.","g":["SSRAEHIHNTSSEOM","ADRETCASRWMHPIM","TRHOCSELARDSCEA","IOWROECPRVPRAPL","ACETHGIEWNOLPAE","HEGTCPKKCCCOKPN","NREEACLGHWITEVR","IPELIOEIPNPNTAL","SHLTWNPCTEOPPCA","EUSMTSAMLDEDGCE","YRCLCHEALTHYEIG","EHEAENNLEVLOCNS","PELCTCARTECCREP","EEPUKCEHCESYNER","INCRREEEPRELOCC"],"w":[["APPOINTMENT","APPOINTMENT",2,14,1,-1],["MICROCHIP","MICROCHIP",0,14,1,-1],["ALL DONE","ALLDONE",12,6,-1,1],["HEALTHY","HEALTHY",10,5,0,1],["STICKER","STICKER",9,2,-1,1],["RECORDS","RECORDS",6,1,-1,0],["VACCINE","VACCINE",6,13,1,0],["CHECKUP","CHECKUP",13,8,0,-1],["WEIGHT","WEIGHT",4,8,0,-1],["GENTLE","GENTLE",6,7,1,-1],["SCALE","SCALE",9,5,1,-1],["CALM","CALM",12,3,-1,0],["EARS","EARS",0,4,0,-1],["EYES","EYES",11,0,-1,0],["PAWS","PAWS",3,7,-1,1]],"img":"h07.webp","th":["h07.webp","h06.webp","h45.webp","h49.webp"]},{"n":56,"t":"At the Vet","f":"Treats and gentle handling at the vet help a puppy learn that visits are not scary.","g":["TEGEGHOTETSTOHS","ERTLPAPCINILCGA","TCGNIWORGASLHST","TVUECTTLRREOHSR","AERAEWRATRHLERE","IPHTEETBUELLAEI","MOORGNITIAWIRER","SCILCPAIEOAPTLR","HSILTROUETPOBBA","NOMVETVISTEPEAC","EHTPREOAPVVHATI","ATMELOREAACETME","TEAASUTRESRUNAG","TTRERABHOINGRXR","ESOTWEAETTABTER"],"w":[["TEMPERATURE","TEMPERATURE",13,0,-1,1],["WAITING ROOM","WAITINGROOM",6,10,0,-1],["STETHOSCOPE","STETHOSCOPE",14,1,-1,0],["HEARTBEAT","HEARTBEAT",3,12,1,0],["EXAM TABLE","EXAMTABLE",14,13,-1,0],["LOLLIPOP","LOLLIPOP",2,11,1,0],["CARRIER","CARRIER",9,14,-1,0],["GROWING","GROWING",2,8,0,-1],["CLINIC","CLINIC",1,12,0,-1],["SHOTS","SHOTS",0,14,0,-1],["BRAVE","BRAVE",13,6,-1,1],["TEETH","TEETH",5,6,0,-1],["NURSE","NURSE",12,12,0,-1],["TREAT","TREAT",9,5,1,-1],["VET","VET",9,3,0,1]],"img":"h06.webp","th":["h06.webp","h45.webp","h49.webp","h07.webp"]},{"n":57,"t":"Hanzo's Feelings","f":"A loose, wiggly body and soft eyes usually mean a dog feels happy and relaxed.","g":["LYLYGGXPGEMCYLH","LPATNETNOCTUPUX","LELGOEEUGRHAPOC","MECPUUYGLELNATL","ULPEOGRZYLEYHLC","FSAAUAFZEALLLSA","LYLCTROERXTGYTE","ELRENCAELENGECS","RLFFPLLEEDEUAHE","EURUCNJOGLGNGEH","LAMLGDOOGNYSEEG","PRJOMSYFPEIRRRH","VENOEAFORHYVNFN","OMTEUYUYNERVOUS","YOATRFLCYPYVFLE"],"w":[["GRATEFUL","GRATEFUL",3,7,1,-1],["PEACEFUL","PEACEFUL",3,3,1,0],["CHEERFUL","CHEERFUL",7,13,1,0],["RELAXED","RELAXED",2,9,1,0],["CONTENT","CONTENT",1,9,0,-1],["NERVOUS","NERVOUS",13,8,0,1],["SNUGGLY","SNUGGLY",10,11,-1,0],["LOVING","LOVING",14,13,-1,-1],["JOYFUL","JOYFUL",9,6,1,0],["SLEEPY","SLEEPY",5,1,-1,0],["GENTLE","GENTLE",9,10,-1,0],["HAPPY","HAPPY",4,12,-1,0],["EAGER","EAGER",7,12,1,0],["CALM","CALM",6,3,-1,-1],["COZY","COZY",7,5,-1,1]],"img":"h11.webp","th":["h11.webp","h23.webp","h40.webp","h13.webp"]},{"n":58,"t":"Hanzo's Feelings","f":"A yawn can mean a dog is sleepy, but it can also mean a dog feels a little unsure.","g":["PCNDASPMLUIEGIR","YUURYLDNEIRFIUG","DRPEASGILPEYRUU","DIAYHDEEGYLLISL","IOFYUSXDRIEVIRE","GUROGCLAUESFLBE","LSHSIRUCMLLUIGV","NROTGRVYPPRNORA","YNENSYRSYDOYVOR","BDESIRPRUSDLDPB","OPCDVLGLVUGPIVR","RNAFDNVYOLXALSY","EVIFUNFRDVSPXER","DTUHLUPFSMEEFAS","ERYRYIUCDALDODD"],"w":[["SURPRISED","SURPRISED",9,9,0,-1],["FRIENDLY","FRIENDLY",1,11,0,-1],["EXCITED","EXCITED",3,7,1,-1],["CURIOUS","CURIOUS",0,1,1,0],["PLAYFUL","PLAYFUL",0,6,1,-1],["GRUMPY","GRUMPY",3,8,1,0],["HUNGRY","HUNGRY",13,3,-1,1],["GIDDY","GIDDY",5,0,-1,0],["PROUD","PROUD",13,6,-1,1],["LOVED","LOVED",10,7,1,1],["BRAVE","BRAVE",9,14,-1,0],["BORED","BORED",9,0,1,0],["SILLY","SILLY",3,13,0,-1],["SAFE","SAFE",13,14,0,-1],["SHY","SHY",2,5,1,-1]],"img":"h23.webp","th":["h23.webp","h40.webp","h13.webp","h11.webp"]},{"n":59,"t":"Hanzo's Feelings","f":"Dogs read our faces and voices and can tell when we are happy.","g":["DLEIPISGIALILCC","OUFELOHNCSUUNNU","IYYSORYGENTLEGR","LNZBURBRENOALFI","IYGORRDSBRAVEAO","YTTRCEUNEAOEOOU","TLEEONSUXLEUUFS","YVDDNDBGOIRIGEG","LDCNTEAGERURTPR","LOAIETILTZALLRB","IALENIUYLTEATHE","SOGCTCROECYYPLS","YITEVXVFGFBCGVR","ELAEREUEUDLDRGE","ULEYDLOLHHDECFE"],"w":[["FRIENDLY","FRIENDLY",12,7,-1,-1],["GRATEFUL","GRATEFUL",7,12,1,-1],["SNUGGLY","SNUGGLY",4,7,1,0],["CONTENT","CONTENT",5,4,1,0],["CURIOUS","CURIOUS",0,14,1,0],["PLAYFUL","PLAYFUL",8,13,1,-1],["EXCITED","EXCITED",13,5,-1,0],["GENTLE","GENTLE",2,7,0,1],["SILLY","SILLY",11,0,-1,0],["EAGER","EAGER",8,5,0,1],["LOVED","LOVED",10,8,1,-1],["BORED","BORED",3,3,1,0],["BRAVE","BRAVE",4,8,0,1],["COZY","COZY",5,4,-1,-1],["SHY","SHY",0,6,1,0]],"img":"h40.webp","th":["h40.webp","h13.webp","h11.webp","h23.webp"]},{"n":60,"t":"Hanzo's Feelings","f":"Ears pinned back and a tucked tail can mean a dog feels worried.","g":["SRDLVRPAYPMURGP","JOYFULRSGUGDEPC","EYANRFHOUNUAYDU","EAHUNGRYDDIGYUU","PLUFECAEPLNVEGE","PSREOLXJEELRONS","HNHLGADLRHEJILP","ALNULDEVCGCLNPC","PCGEUFOLGVLSSEP","PFRRUUHRUENAYEG","YVVYSURISRFYGEE","DPROUDIVYEEMUUR","LPSURPRISEDLNRJ","GLEUURRYLHLALOR","AERNRRLLMEGCNLP"],"w":[["SURPRISED","SURPRISED",12,2,0,1],["PEACEFUL","PEACEFUL",4,8,0,-1],["CHEERFUL","CHEERFUL",7,10,-1,-1],["NERVOUS","NERVOUS",4,10,1,-1],["RELAXED","RELAXED",9,2,-1,1],["LOVING","LOVING",6,13,-1,-1],["JOYFUL","JOYFUL",1,0,0,1],["SLEEPY","SLEEPY",8,12,-1,-1],["GRUMPY","GRUMPY",0,13,0,-1],["HUNGRY","HUNGRY",3,2,0,1],["GIDDY","GIDDY",3,11,0,-1],["HAPPY","HAPPY",6,0,1,0],["PROUD","PROUD",11,1,0,1],["SAFE","SAFE",8,12,1,-1],["CALM","CALM",14,11,-1,0]],"img":"h13.webp","th":["h13.webp","h11.webp","h23.webp","h40.webp"]},{"n":61,"t":"Road Trip","f":"A crate or a dog seat belt keeps a pup safe while the car is moving.","g":["TPCMDRVSISAPNEN","MSPATAPASUGIGDA","EUARRSTESIAELMR","GUMONAERUTNEVDA","STAESRACNCNHCNR","MNTGMLNUOATOAAT","INIEAEODESMMBAE","LASROMNIAETEINT","EAOISRNOPOTANAU","SCAAAORMWARGLWM","IRURESTSTOPASAM","GOEWANEPMIDITTT","CRUSRVTCDNINMEE","RNTAICAMPINGIRN","EVIRRAIAIGIAEWT"],"w":[["HOME AGAIN","HOMEAGAIN",4,11,1,0],["ADVENTURE","ADVENTURE",3,14,0,-1],["SUITCASE","SUITCASE",0,9,1,0],["MOUNTAIN","MOUNTAIN",7,5,-1,1],["REST STOP","RESTSTOP",10,3,0,1],["CAR SEAT","CARSEAT",4,7,0,-1],["CAMPING","CAMPING",13,5,0,1],["WINDOW","WINDOW",14,13,-1,-1],["ARRIVE","ARRIVE",14,5,0,-1],["CABIN","CABIN",4,12,1,0],["MILES","MILES",5,0,1,0],["WATER","WATER",9,13,1,0],["TENT","TENT",11,14,1,0],["ROAD","ROAD",9,10,-1,-1],["MAP","MAP",3,2,-1,0]],"img":"h04.webp","th":["h04.webp","h08.webp","h16.webp","h24.webp"]},{"n":62,"t":"Road Trip","f":"Never leave a dog alone in a parked car. It can get dangerously hot very fast.","g":["EIAUAHERCHVOOAE","CPSIGHTSHESTETL","ASNACKSGBZNOYRT","TEIYTLNHBEHHSER","ATEASOWABENPKER","EAUWLETOHRLNBNG","SEAHSEAKBBAOHLC","KRRGSVRTBLKCBVG","CETIESKABSELOAR","AARHNENAWEFVYAS","BGOLRETOECLTAHR","VRHBAEVSRETTLRT","IEHTHNHUTSOOHST","TSUEBKEEOAOASAN","TSEROFRHKSUBIIG"],"w":[["TRAVEL BOWL","TRAVELBOWL",12,14,-1,-1],["SOUVENIR","SOUVENIR",14,9,-1,-1],["BACK SEAT","BACKSEAT",10,0,-1,0],["SEAT BELT","SEATBELT",4,4,1,1],["HARNESS","HARNESS",12,4,-1,0],["HIGHWAY","HIGHWAY",9,3,-1,0],["BLANKET","BLANKET",8,8,-1,1],["SNACKS","SNACKS",2,1,0,1],["FOREST","FOREST",14,5,0,-1],["SIGHTS","SIGHTS",1,2,0,1],["BREEZE","BREEZE",6,9,-1,0],["PHOTO","PHOTO",4,11,-1,0],["HOTEL","HOTEL",5,8,0,-1],["LAKE","LAKE",5,10,1,0],["CAR","CAR",7,11,-1,-1]],"img":"h08.webp","th":["h08.webp","h16.webp","h24.webp","h04.webp"]},{"n":63,"t":"Road Trip","f":"Short car rides help a puppy get used to travel before a long trip.","g":["BACKSEATSCGESKN","TTCTKOCSEAONNEW","IGCIHRTERSROWSN","ATHCRDARITONODC","NIAGAEMOHPATFAO","ORTENOWFMADVMAS","NIINAIHCGEEPOYI","EOGNRYAWHGIHNPN","RSOAESTSENSKOAI","RISTEVTPGIATCAA","IAHSGOUHIOSASHT","ROIIMRTOGTEMELN","BREEZEOOSIEPLTU","WINDOWIEHHSNIMO","HPOAAARNGPNOMEM"],"w":[["HOME AGAIN","HOMEAGAIN",4,8,0,-1],["SOUVENIR","SOUVENIR",12,8,-1,-1],["REST STOP","RESTSTOP",14,6,-1,1],["MOUNTAIN","MOUNTAIN",14,14,-1,0],["BACK SEAT","BACKSEAT",0,0,0,1],["HIGHWAY","HIGHWAY",7,11,0,-1],["CAMPING","CAMPING",3,14,1,-1],["WINDOW","WINDOW",13,0,0,1],["FOREST","FOREST",5,7,-1,0],["SIGHTS","SIGHTS",13,10,-1,-1],["BREEZE","BREEZE",12,0,0,1],["PHOTO","PHOTO",14,9,-1,-1],["MILES","MILES",14,12,-1,0],["ROAD","ROAD",2,10,1,0],["CAR","CAR",3,3,1,-1]],"img":"h16.webp","th":["h16.webp","h24.webp","h04.webp","h08.webp"]},{"n":64,"t":"Road Trip","f":"Stopping for breaks lets a dog stretch, sniff, and have a drink.","g":["LSARRKTESTDTTNT","ERVWTRCNERTNARH","EPBRNAKKEREEBRR","AVTCCSNATESTNAE","EWENAAWSEKSTEVE","RRSULVBUAAECISA","LLEBRKTISLNRTEH","MCARSEATNPRASTT","LASVUTTCSAAESLV","LTREETAAIMHALED","ENTAATNSWBTAABE","TCBRENUECESLNTK","OESKCANSVREBTAR","HPEBUTKSADAELEA","TSALWOBLEVARTSK"],"w":[["TRAVEL BOWL","TRAVELBOWL",14,12,0,-1],["ADVENTURE","ADVENTURE",14,10,-1,-1],["SEAT BELT","SEATBELT",14,13,-1,0],["SUITCASE","SUITCASE",4,7,1,0],["BLANKET","BLANKET",6,3,-1,1],["HARNESS","HARNESS",9,10,-1,0],["CAR SEAT","CARSEAT",7,1,0,1],["ARRIVE","ARRIVE",8,9,-1,1],["SNACKS","SNACKS",12,7,0,-1],["WATER","WATER",10,8,-1,-1],["CABIN","CABIN",3,4,1,1],["HOTEL","HOTEL",13,0,-1,0],["TENT","TENT",3,11,-1,0],["LAKE","LAKE",6,9,-1,0],["MAP","MAP",9,9,-1,0]],"img":"h24.webp","th":["h24.webp","h04.webp","h08.webp","h16.webp"]},{"n":65,"t":"Seasons with Hanzo","f":"With their thick coats, Akitas were made for snowy weather and often love the cold.","g":["RALETWECUNEANAT","AIAOIUMREMMVIEH","IORNSOLWIOSPECW","OPTDEALIPFDRAMI","NENLVWALPEPEECR","RALEAFPILEBMIWE","NNAMWONSPASCARF","MSRPONUIDLLIBCT","UUNABRNPPEAULSN","TOAKNBRTUAALOIM","UPCPIMLWMOANSAP","AAWRAASIPSAISEI","PVWPRATSKBNIOAA","PUNPNIEAICUSMCS","EFBDHLDWNNEIIDM"],"w":[["CAMPFIRE","CAMPFIRE",7,13,-1,-1],["LEAF PILE","LEAFPILE",5,2,0,1],["PUMPKIN","PUMPKIN",8,8,1,0],["SNOWMAN","SNOWMAN",6,7,0,-1],["RAINBOW","RAINBOW",12,4,-1,0],["BLOSSOM","BLOSSOM",7,12,1,0],["ICICLE","ICICLE",3,14,1,-1],["AUTUMN","AUTUMN",11,0,-1,0],["WINTER","WINTER",0,5,1,-1],["SCARF","SCARF",6,10,0,1],["TULIP","TULIP",0,4,1,1],["WAVES","WAVES",6,4,-1,0],["BEACH","BEACH",5,10,-1,1],["SAND","SAND",11,6,1,-1],["SLED","SLED",6,7,-1,1]],"img":"h15.webp","th":["h15.webp","h35.webp","h39.webp","h47.webp"]},{"n":66,"t":"Seasons with Hanzo","f":"Thick coated dogs need plenty of shade and water in hot summer weather.","g":["ERGNSIPASIAAOIR","TSISAULSHERSTES","RILHDNNRMTUHAEN","ETSDSOHDPMAEILB","FKLSWPTOMWEEDSE","PEABNFRELKNIRPS","ECALPERIFIISSWH","BLWAFWTLNPDLEIA","LLNNFWETAGRAEER","ERHRIMORILHTYAV","NROIOATNSMREHNE","TSINRNRWSSEANTS","TWASRSYLLAHMMVT","ODANEERENIHSNUS","EEIERSWMAMASAFA"],"w":[["SNOWFLAKE","SNOWFLAKE",11,8,-1,-1],["SPRINKLER","SPRINKLER",5,14,0,-1],["FIREPLACE","FIREPLACE",6,8,0,-1],["SNOWBALL","SNOWBALL",1,7,1,-1],["SUNSHINE","SUNSHINE",13,14,0,-1],["LEMONADE","LEMONADE",7,7,1,-1],["MITTENS","MITTENS",10,9,-1,-1],["HOLIDAY","HOLIDAY",3,6,1,1],["HARVEST","HARVEST",6,14,1,0],["SUMMER","SUMMER",1,11,1,-1],["SPRING","SPRING",3,4,1,1],["PUDDLE","PUDDLE",0,6,1,-1],["WREATH","WREATH",6,13,-1,-1],["FROST","FROST",8,4,1,-1],["RAIN","RAIN",11,6,-1,-1]],"img":"h35.webp","th":["h35.webp","h39.webp","h47.webp","h15.webp"]},{"n":67,"t":"Seasons with Hanzo","f":"Wiping paws after a winter walk removes salt and ice from the pads.","g":["TUMDFTRKTNUBUTA","SOIEUASAMSUBOSL","NSOBLLRNCNLAIEP","DRBCTAMEOOIEHVI","AHOWIUDNSWFIORL","SESTUTRSTMFEDAU","PUFULUOLEAALSHT","RTOKLMRETNIWATS","IEAIRNBRRSIRWKR","NGCAMPFIREPLACE","GTRYADILOHRBELO","DNRWTADLIAHFDLI","FROSTTARIPPDVPR","NCPNAORNRIUNDCT","RHCAEBERSPBLNEE"],"w":[["FIREPLACE","FIREPLACE",9,6,0,1],["SNOWFLAKE","SNOWFLAKE",1,6,1,1],["CAMPFIRE","CAMPFIRE",9,2,0,1],["SNOWMAN","SNOWMAN",1,9,1,0],["BLOSSOM","BLOSSOM",1,11,1,-1],["HOLIDAY","HOLIDAY",10,9,0,-1],["HARVEST","HARVEST",6,13,-1,0],["WINTER","WINTER",7,11,0,-1],["PUDDLE","PUDDLE",14,9,-1,1],["SPRING","SPRING",5,0,1,0],["AUTUMN","AUTUMN",3,5,1,0],["FROST","FROST",12,0,0,1],["TULIP","TULIP",6,14,-1,0],["BEACH","BEACH",14,5,0,-1],["RAIN","RAIN",10,10,1,-1]],"img":"h39.webp","th":["h39.webp","h47.webp","h15.webp","h35.webp"]},{"n":68,"t":"Seasons with Hanzo","f":"Many dogs love jumping into piles of fall leaves.","g":["PSPWEIEIEERIWMM","WSLENIHSNUSCARF","MIAIWSMRETNIVTL","MLSNIWAVESECPNW","RELKNIRPSFELECW","LEMONADELSIEPIW","RTMBNAFSALMDNFO","SMOMSSTNPTMCNNC","LWIRULAEPRHANAC","BNLTLSMLUMSPFIS","PRSOTCESMLKTPKR","IBFLLEAFPILEWWW","ASUEEFNEKFETEES","CSALIIKSICLKRII","SNOWBALLNTTKRNI"],"w":[["SPRINKLER","SPRINKLER",4,8,0,-1],["LEMONADE","LEMONADE",5,0,0,1],["SUNSHINE","SUNSHINE",1,10,0,-1],["SNOWBALL","SNOWBALL",14,0,0,1],["LEAF PILE","LEAFPILE",11,4,0,1],["MITTENS","MITTENS",7,1,1,1],["RAINBOW","RAINBOW",2,7,1,-1],["PUMPKIN","PUMPKIN",8,8,1,0],["SUMMER","SUMMER",9,5,-1,-1],["ICICLE","ICICLE",0,11,1,0],["WREATH","WREATH",3,5,1,1],["WAVES","WAVES",3,5,0,1],["SCARF","SCARF",1,10,0,1],["SAND","SAND",9,14,-1,-1],["SLED","SLED",5,9,0,-1]],"img":"h47.webp","th":["h47.webp","h15.webp","h35.webp","h39.webp"]},{"n":69,"t":"Puppy from Nose to Tail","f":"Every dog's nose print is unique, a little like a person's fingerprint.","g":["COATBISPHEEOPAC","OLNEREDONERRORB","SSEEPSWOBLELNKA","PAWPADSREDLUOHS","OBAPSESRUFOROYL","EEKCENBAOYTTATI","SLCCLLHCSRDEBPA","OLODOINEWETLTYN","TYTBRTAUOTTTDOP","ENSSSTOTRAAEDBO","LETSSTRABTDEOCC","UKSHREWNEITSEHC","AYETRAEHYWRUSAT","CEORUSTREEELPIE","OSTEPTCPSRECSAH"],"w":[["SHOULDERS","SHOULDERS",3,14,0,-1],["EYEBROWS","EYEBROWS",13,8,-1,0],["PAW PADS","PAWPADS",3,0,0,1],["ELBOWS","ELBOWS",2,10,0,-1],["BELLY","BELLY",4,1,1,0],["NAILS","NAILS",7,14,-1,0],["HEART","HEART",12,7,0,-1],["CHEST","CHEST",11,14,0,-1],["NECK","NECK",5,5,0,-1],["TAIL","TAIL",9,7,-1,-1],["NOSE","NOSE",1,8,1,-1],["COAT","COAT",0,0,0,1],["TOES","TOES",14,2,-1,0],["EYES","EYES",11,8,1,0],["FUR","FUR",4,9,0,-1]],"img":"h48.webp","th":["h48.webp","h22.webp","h26.webp","h05.webp"]},{"n":70,"t":"Puppy from Nose to Tail","f":"Dogs sweat mainly through their paw pads and cool off by panting.","g":["SESGELWIKCABWLW","WSLAEAKANWCMBAT","WARALHEAEKOEWGM","KSGCEWRAEEDASNG","ARWGKAPASPUSKUI","UENCIECETEHTEET","DKAAENLAOEIEEKS","SSNTLUGCHINKHNW","PIKCSWETRENLCAS","IHPUSBODAEHEROF","HWIEUGNOTILZSKP","AESWAPTAEZLEENI","ITRNGNEHZEEEGOG","GCERADGUGKNTSHH","MEENEWMMLEEFKGF"],"w":[["WAGGING TAIL","WAGGINGTAIL",1,0,1,1],["WHISKERS","WHISKERS",10,1,-1,0],["FOREHEAD","FOREHEAD",9,14,0,-1],["DEWCLAW","DEWCLAW",6,0,-1,1],["MUZZLE","MUZZLE",14,6,-1,1],["CHEEKS","CHEEKS",8,12,-1,0],["TONGUE","TONGUE",10,8,0,-1],["TEETH","TEETH",5,14,0,-1],["KNEES","KNEES",0,8,1,0],["LEGS","LEGS",0,5,0,-1],["CHIN","CHIN",7,7,0,1],["BACK","BACK",0,11,0,-1],["PAWS","PAWS",11,5,0,-1],["HIPS","HIPS",10,0,-1,0],["EARS","EARS",0,4,1,-1]],"img":"h22.webp","th":["h22.webp","h26.webp","h05.webp","h48.webp"]},{"n":71,"t":"Puppy from Nose to Tail","f":"Whiskers help a dog sense things close to its face.","g":["WEPZNAILSWAPBTO","LARMUZZLESWFYOC","YSGRETYSPIHESHB","HINGLINNULTEETH","SSNEIRASREKSIHW","SKEECNAHHTTSNFS","FSWYSSGEAEITFAU","BLWKEPYTWBWSUWS","ZAROHPFDAEHEROF","HNTIRBIOCIEEREG","IHITABTASOLRZGN","NNINAIEIFNTSIYH","IRSDEERYOEORELB","HEHHERSGEIOSEHE","CSEANIEMAINEECE"],"w":[["WAGGING TAIL","WAGGINGTAIL",0,0,1,1],["FOREHEAD","FOREHEAD",8,14,0,-1],["WHISKERS","WHISKERS",4,14,0,-1],["EYEBROWS","EYEBROWS",13,8,-1,-1],["MUZZLE","MUZZLE",1,3,0,1],["TEETH","TEETH",3,10,0,1],["CHEST","CHEST",1,14,1,-1],["NAILS","NAILS",0,4,0,1],["EYES","EYES",7,4,-1,-1],["CHIN","CHIN",14,0,-1,0],["NOSE","NOSE",11,9,1,1],["TOES","TOES",9,2,-1,1],["PAWS","PAWS",0,11,0,-1],["HIPS","HIPS",2,10,0,-1],["FUR","FUR",6,12,1,0]],"img":"h26.webp","th":["h26.webp","h05.webp","h48.webp","h22.webp"]},{"n":72,"t":"Puppy from Nose to Tail","f":"Dogs can hear high sounds that people cannot hear at all.","g":["RORBBDEWCLAWSNW","KHEPUYNULDECOAT","OSCNYKCLCASERCA","SWAIWLWILGSLIHI","ERAKBEBSKWLWEAL","NEWAAELLDLLWLOE","ECCRUAPSKEDSAAE","SKSGWSAWLHHGAYL","RONELLWOWOCELES","AOLEBNPBUKHLGPL","TEOREAALLUEHRAL","KELCESDEIBEOPLL","KLKSDESTCSKLCHG","NCYEROYPTKSCKET","SLKSAEACONHEART"],"w":[["SHOULDERS","SHOULDERS",6,11,1,-1],["PAW PADS","PAWPADS",6,6,1,0],["DEWCLAW","DEWCLAW",0,5,0,1],["ELBOWS","ELBOWS",11,7,-1,0],["TONGUE","TONGUE",10,0,-1,1],["CHEEKS","CHEEKS",8,10,1,0],["BELLY","BELLY",11,9,-1,1],["KNEES","KNEES",7,1,1,1],["HEART","HEART",14,10,0,1],["LEGS","LEGS",9,11,-1,0],["COAT","COAT",1,11,0,1],["EARS","EARS",4,5,1,-1],["NECK","NECK",9,5,1,-1],["TAIL","TAIL",1,14,1,0],["BACK","BACK",4,4,1,-1]],"img":"h05.webp","th":["h05.webp","h48.webp","h22.webp","h26.webp"]},{"n":73,"t":"Dog Breeds","f":"The Akita, Shiba Inu, Husky, and Samoyed are all spitz type dogs with thick coats and curled tails.","g":["FEBAAFFITSAMAUI","ATIKARNUTOATOHR","BAESIIGROCIESIU","CSTNIWOHCWOHCHH","AGGDBASSETHOUND","NGREIYKSUHOIGHA","DACEDZAUHAUHIHC","HIDGAHDDNRGAIHH","SDGROTTWEILERBS","NDOURDDTNOACHUH","UELSAGLAEOHBTIU","HHDHEUBLNHCEIUN","DREHPEHSUELRAHD","SFNSEIUMLBKHFMS","NDESHIHTZUNIHLE"],"w":[["BASSET HOUND","BASSETHOUND",4,4,0,1],["ROTTWEILER","ROTTWEILER",8,3,0,1],["DACHSHUND","DACHSHUND",4,14,1,0],["GREAT DANE","GREATDANE",4,1,1,1],["CHIHUAHUA","CHIHUAHUA",6,14,0,-1],["CHOW CHOW","CHOWCHOW",3,12,0,-1],["SHIBA INU","SHIBAINU",13,14,-1,-1],["SHEPHERD","SHEPHERD",12,7,0,-1],["MASTIFF","MASTIFF",0,11,0,-1],["SHIH TZU","SHIHTZU",14,3,0,1],["BULLDOG","BULLDOG",13,9,-1,-1],["GOLDEN","GOLDEN",8,2,1,0],["AKITA","AKITA",1,4,0,-1],["CORGI","CORGI",2,9,0,-1],["HUSKY","HUSKY",5,9,0,-1]],"img":"h00.webp","th":["h00.webp","h34.webp","h50.webp","h31.webp"]},{"n":74,"t":"Dog Breeds","f":"The Shiba Inu is also from Japan and is much smaller than the Akita.","g":["LNSERPLANEANGEM","MESALABRADORRDO","LRIATEOLHBOXERP","NLMNMRLTLNMNGBL","OLRMAOETWWEEPEE","AEIIMPYOELEGAPR","RDDTPLSEALBAEOG","ENRILERCDREMLMR","IBHNTPNEOEALDEE","RWDLOLOOALGAORY","RWOLORTGAILUOAH","ENTENMLMNEEIPNO","TNBRLPUEEFMREIU","EEEIETDALMATIAN","GNDNEWFOUNDLAND"],"w":[["NEWFOUNDLAND","NEWFOUNDLAND",14,3,0,1],["POMERANIAN","POMERANIAN",5,13,1,0],["GREYHOUND","GREYHOUND",6,14,1,0],["DALMATIAN","DALMATIAN",13,6,0,1],["MALAMUTE","MALAMUTE",7,11,1,-1],["LABRADOR","LABRADOR",1,4,0,1],["WHIPPET","WHIPPET",9,1,-1,1],["TERRIER","TERRIER",12,0,-1,0],["SPANIEL","SPANIEL",6,6,-1,-1],["SAMOYED","SAMOYED",1,2,1,1],["BEAGLE","BEAGLE",6,10,1,0],["COLLIE","COLLIE",7,7,1,1],["POODLE","POODLE",11,12,-1,0],["BOXER","BOXER",2,9,0,1],["PUG","PUG",11,12,-1,-1]],"img":"h34.webp","th":["h34.webp","h50.webp","h31.webp","h00.webp"]},{"n":75,"t":"Dog Breeds","f":"The Greyhound is one of the fastest dogs and can run more than 40 miles per hour.","g":["TEELDOOPSHIHTZU","MALAMUTERRIERAH","AFHAYWRHLADELAA","MOZTROTTWEILERC","LYLDPHBOROMMKLR","EFKOWCESNEPMNEH","GFCSFWARHUOCDDA","OFELUORUGEUHAET","DIAMHHGOHLWNLDI","LTLRUCLHDAUOMMK","LSRBGDOARAUOAHA","UAKEEMLTRWRHTAR","BMLNFHKLREHBIUO","EIUUTWRHEAHWAHS","ATHECDEMHMTBNLC"],"w":[["ROTTWEILER","ROTTWEILER",3,4,0,1],["DALMATIAN","DALMATIAN",6,12,1,0],["CHIHUAHUA","CHIHUAHUA",14,14,-1,-1],["CHOW CHOW","CHOWCHOW",9,5,-1,0],["LABRADOR","LABRADOR",14,13,-1,-1],["MALAMUTE","MALAMUTE",1,0,0,1],["TERRIER","TERRIER",1,6,0,1],["SHIH TZU","SHIHTZU",0,8,0,1],["MASTIFF","MASTIFF",12,1,-1,0],["BULLDOG","BULLDOG",12,0,-1,0],["POODLE","POODLE",0,7,0,-1],["GOLDEN","GOLDEN",7,8,1,-1],["AKITA","AKITA",10,14,-1,0],["HUSKY","HUSKY",8,5,-1,-1],["PUG","PUG",5,10,1,-1]],"img":"h50.webp","th":["h50.webp","h31.webp","h00.webp","h34.webp"]},{"n":76,"t":"Dog Breeds","f":"The Chihuahua is often called the smallest dog breed in the world.","g":["HDPOMERANIANSRG","GNOANETLCNPAREE","DGDNALDNUOFWENA","RUDOAHNNPWOUNYS","EHNDAEUOUBOHEHP","HSGLHROHHIDPIEA","PERDWUHTRAPBIEN","EEEODETSCEANNNI","HTYMABEHEIXAILE","SEHYEGSONIDOSCL","DPOUTHSUHTLDBNS","GPUDUNARAILLOAU","GINNYABEAGLEOIP","NHDOCCRCORGIHCI","CWLAPGDEYOMASER"],"w":[["NEWFOUNDLAND","NEWFOUNDLAND",2,13,0,-1],["BASSET HOUND","BASSETHOUND",12,6,-1,0],["POMERANIAN","POMERANIAN",0,2,0,1],["GREAT DANE","GREATDANE",14,5,-1,1],["GREYHOUND","GREYHOUND",5,2,1,0],["DACHSHUND","DACHSHUND",5,10,1,-1],["SHIBA INU","SHIBAINU",3,14,1,-1],["SHEPHERD","SHEPHERD",9,0,-1,0],["SPANIEL","SPANIEL",3,14,1,0],["WHIPPET","WHIPPET",14,1,-1,0],["SAMOYED","SAMOYED",14,12,0,-1],["BEAGLE","BEAGLE",12,6,0,1],["COLLIE","COLLIE",13,13,-1,-1],["BOXER","BOXER",10,12,-1,-1],["CORGI","CORGI",13,7,0,1]],"img":"h31.webp","th":["h31.webp","h00.webp","h34.webp","h50.webp"]},{"n":77,"t":"Home Sweet Home","f":"Puppies chew to explore, so keep shoes and socks up high.","g":["DDRETNUOCNMHBRR","WOLHVPETNEHCTIK","VTHCRADEOXIRIRM","IPASFFLEHSKOOBR","BCLMOTOULORPVHM","PLLLRUOILCSURKA","HLWEEOPNIOHFTOI","ODAOVPOVVOCSXSL","TNYSEVYDIHUGSOB","OPNRREIONROCHOO","SESOHBRHGACPOLX","LLSROCRSRXLOEMT","DHCOMHOSOALRSOL","APPHEVFRONTDOOR","RDFCMLOTMMAEESE"],"w":[["FOREVER HOME","FOREVERHOME",3,4,1,0],["LIVING ROOM","LIVINGROOM",5,8,1,0],["FRONT DOOR","FRONTDOOR",13,6,0,1],["BOOKSHELF","BOOKSHELF",3,13,0,-1],["SLIPPERS","SLIPPERS",3,9,1,-1],["KITCHEN","KITCHEN",1,14,0,-1],["HALLWAY","HALLWAY",2,2,1,0],["MAILBOX","MAILBOX",4,14,1,0],["DOORMAT","DOORMAT",8,7,-1,-1],["COUNTER","COUNTER",0,8,0,-1],["PHOTOS","PHOTOS",5,0,1,0],["COUCH","COUCH",10,10,-1,0],["SHOES","SHOES",8,12,1,0],["PORCH","PORCH",4,11,-1,0],["HUGS","HUGS",8,9,0,1]],"img":"h05.webp","th":["h05.webp","h30.webp","h13.webp","h52.webp"]},{"n":78,"t":"Home Sweet Home","f":"A daily routine for meals, walks, and naps helps a puppy feel safe at home.","g":["ODINNERTABLEARR","IOLIRSYWUSRCOIT","WROFTTIBEGDIRFH","IBMANSELNRTBDBL","OCIBSELERENRYTC","SROTVEDYLIMAFSY","SKSHBLLEBWINDOW","ODCRUHVEDIOSCOE","BIOORIDLYOBRLTL","FOOSSRAASMRAUUE","DALIOARRUGULFCD","EEOOCDIRGNDLTCN","INMCVVCSDOVTUES","MDHOMEERENRINOO","ROTBNSYOLOLWBDF"],"w":[["DINNER TABLE","DINNERTABLE",0,1,0,1],["TELEVISION","TELEVISION",3,10,1,-1],["DOORBELL","DOORBELL",10,0,-1,1],["LAUNDRY","LAUNDRY",8,12,1,-1],["BEDROOM","BEDROOM",6,8,1,-1],["STAIRS","STAIRS",1,5,1,-1],["FAMILY","FAMILY",5,12,0,-1],["WINDOW","WINDOW",6,9,0,1],["FRIDGE","FRIDGE",2,13,0,-1],["CRUMBS","CRUMBS",12,6,-1,1],["SOCKS","SOCKS",9,4,-1,-1],["HOME","HOME",13,2,0,1],["YARD","YARD",8,8,1,-1],["LOVE","LOVE",10,2,1,1],["RUG","RUG",10,7,0,1]],"img":"h30.webp","th":["h30.webp","h13.webp","h52.webp","h05.webp"]},{"n":79,"t":"Home Sweet Home","f":"Many dogs love to watch the world from a sunny window.","g":["BNAOPRYRDNUALTO","OSDSOHHALLWAYET","OHHKHFOHMPAFROS","KDPCBESTORDPOHO","SSFOALRVOEEYHMN","HOOSLBYORSSHOES","EERESADHDDNOBME","LOENOTCAEERHLOD","FBVBNRHEBGRTDYO","VNEOOEDTNEOLNHO","IHRPKNYINVSOSHR","SFHCKNVFWYEOUNB","PNOISIVELETROAE","DOMDLDOBCDRAYRL","PYEOOLLANEOOEEL"],"w":[["DINNER TABLE","DINNERTABLE",13,5,-1,0],["FOREVER HOME","FOREVERHOME",4,2,1,0],["LIVING ROOM","LIVINGROOM",13,4,-1,1],["TELEVISION","TELEVISION",12,10,0,-1],["FRONT DOOR","FRONTDOOR",11,1,-1,1],["BOOKSHELF","BOOKSHELF",0,0,1,0],["DOORBELL","DOORBELL",7,14,1,0],["BEDROOM","BEDROOM",8,8,-1,0],["LAUNDRY","LAUNDRY",0,12,0,-1],["HALLWAY","HALLWAY",1,6,0,1],["PHOTOS","PHOTOS",0,4,1,1],["PORCH","PORCH",10,3,-1,1],["SOCKS","SOCKS",5,3,-1,0],["SHOES","SHOES",5,10,0,1],["YARD","YARD",13,12,0,-1]],"img":"h13.webp","th":["h13.webp","h52.webp","h05.webp","h30.webp"]},{"n":80,"t":"Home Sweet Home","f":"A forever home is the family a dog lives with for the rest of its life.","g":["LCBWTGRHORLDDOX","RPYCBGNIURARDIG","FKLOOSPIFOXUNDC","MNINMCUTDEOPSIH","SBMTEBCWHUBDLNB","EEASCCOGUVLTIHL","GIFORHCUOCIDPOW","DWSHUPENHCAXPNL","IIMGMILNOOMDEHO","RNSOBWGTOUSORLH","FDIRSUEOSNROSGS","HOWLRTSFOTIRCCS","RWWOOOHOMEAMSIH","CIGPTVEWMRTAHNC","CATTOCEUELSTMLY"],"w":[["SLIPPERS","SLIPPERS",3,12,1,0],["KITCHEN","KITCHEN",2,1,1,1],["MAILBOX","MAILBOX",8,10,-1,0],["COUNTER","COUNTER",7,9,1,0],["DOORMAT","DOORMAT",8,11,1,0],["STAIRS","STAIRS",14,10,-1,0],["WINDOW","WINDOW",7,1,1,0],["FRIDGE","FRIDGE",10,0,-1,0],["CRUMBS","CRUMBS",5,4,1,0],["FAMILY","FAMILY",6,2,-1,0],["COUCH","COUCH",6,9,0,-1],["LOVE","LOVE",11,3,1,1],["HUGS","HUGS",6,5,1,-1],["HOME","HOME",12,6,0,1],["RUG","RUG",11,4,-1,1]],"img":"h52.webp","th":["h52.webp","h05.webp","h30.webp","h13.webp"]}];
+const N = 15;
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("hanzo:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("hanzo:" + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+function dayKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function daysBetween(a, b) { const pa = a.split("-").map(Number), pb = b.split("-").map(Number); return Math.round((Date.UTC(pb[0], pb[1] - 1, pb[2]) - Date.UTC(pa[0], pa[1] - 1, pa[2])) / 864e5); }
+const today = dayKey(new Date());
+const dayNum = Math.max(0, daysBetween(CONFIG.start, today));
+const dailyIndex = dayNum % PUZZLES.length;
+
+let cur, found, startedAt, timerId, isDaily, anchor = null, drag = null;
+
+const cheers = ["Woof! You found", "Yes! That's", "Good human! You found", "Tail wags for", "Look at you! You found"];
+
+function render(index, daily) {
+  isDaily = daily;
+  cur = PUZZLES[index];
+  found = new Set();
+  startedAt = null; clearInterval(timerId); $("clock").textContent = "0:00";
+  const saved = daily ? store.get("progress", null) : null;
+  if (saved && saved.day === today && saved.n === cur.n) { saved.found.forEach((w) => found.add(w)); startedAt = Date.now() - (saved.ms || 0); }
+  poses = posesFor();
+  setPic(poses[poseFor(found.size)], true);
+  poses.forEach((s) => { const i = new Image(); i.src = s; }); // preload the theme's poses
+  renderGrow();
+  $("kicker").textContent = daily ? "Today's puzzle · No. " + cur.n : "Extra puzzle · No. " + cur.n;
+  $("theme").textContent = cur.t;
+  const grid = $("grid"); grid.innerHTML = "";
+  cur.g.forEach((row, r) => [...row].forEach((ch, c) => {
+    const el = document.createElement("div"); el.className = "cell"; el.textContent = ch; el.dataset.r = r; el.dataset.c = c; el.setAttribute("role", "gridcell"); grid.appendChild(el);
+  }));
+  $("words").innerHTML = "";
+  cur.w.forEach((w) => { const s = document.createElement("span"); s.className = "word"; s.textContent = w[0]; s.dataset.key = w[1]; $("words").appendChild(s); });
+  $("done").hidden = true; $("shareText").hidden = true; $("shareNote").textContent = "";
+  drawLines(); updateWords();
+  if (found.size === cur.w.length) finish(true);
+  else { $("say").textContent = found.size ? "Welcome back! " + (cur.w.length - found.size) + " words still hiding." : "Can you help me find " + cur.w.length + " words about " + cur.t.toLowerCase() + "?"; if (startedAt) tick(); }
+}
+
+function cellAt(x, y) {
+  const r = $("gridwrap").getBoundingClientRect();
+  const c = Math.floor((x - r.left) / r.width * N), rr = Math.floor((y - r.top) / r.height * N);
+  if (c < 0 || rr < 0 || c >= N || rr >= N) return null;
+  return [rr, c];
+}
+function snap(a, b) {
+  let dr = b[0] - a[0], dc = b[1] - a[1];
+  if (dr === 0 && dc === 0) return [a, a];
+  const len = Math.max(Math.abs(dr), Math.abs(dc));
+  if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) { // force to nearest of 8 directions
+    const ang = Math.atan2(dr, dc), step = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+    dr = Math.round(Math.sin(step)); dc = Math.round(Math.cos(step));
+    return [a, [Math.min(N - 1, Math.max(0, a[0] + dr * len)), Math.min(N - 1, Math.max(0, a[1] + dc * len))]];
+  }
+  return [a, b];
+}
+function wordAt(a, b) {
+  for (const w of cur.w) {
+    const [, key, r, c, dr, dc] = w, L = key.length;
+    const er = r + dr * (L - 1), ec = c + dc * (L - 1);
+    if ((a[0] === r && a[1] === c && b[0] === er && b[1] === ec) || (b[0] === r && b[1] === c && a[0] === er && a[1] === ec)) return key;
+  }
+  return null;
+}
+function drawLines(live) {
+  const svg = $("lines"); let html = "";
+  for (const w of cur.w) if (found.has(w[1])) {
+    const [, key, r, c, dr, dc] = w, L = key.length;
+    html += `<line class="found" x1="${c + .5}" y1="${r + .5}" x2="${c + dc * (L - 1) + .5}" y2="${r + dr * (L - 1) + .5}"/>`;
+  }
+  if (live) html += `<line class="live" x1="${live[0][1] + .5}" y1="${live[0][0] + .5}" x2="${live[1][1] + .5}" y2="${live[1][0] + .5}"/>`;
+  svg.innerHTML = html;
+}
+function updateWords() {
+  document.querySelectorAll(".word").forEach((s) => s.classList.toggle("got", found.has(s.dataset.key)));
+  $("count").textContent = found.size + " of " + cur.w.length;
+}
+function tick() { clearInterval(timerId); timerId = setInterval(() => { $("clock").textContent = fmt(Date.now() - startedAt); }, 500); $("clock").textContent = fmt(Date.now() - startedAt); }
+function fmt(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function bump(cls) { const h = $("hanzo"); h.classList.remove("hop", "wiggle"); void h.offsetWidth; h.classList.add(cls); }
+$("hanzo").addEventListener("animationend", (e) => { if (e.target === $("hanzo")) $("hanzo").classList.remove("hop", "wiggle"); });
+/* Hanzo moves through the theme's four pictures as words are found */
+let front = null, back = null, poses = [], previewBest = null;
+function bestStreak() { if (previewBest != null) return previewBest; const st = store.get("streak", { best: 0 }); return st.best || 0; }
+function levelFor(best) { let l = 0; STAGES.forEach((s, i) => { if (best >= s.at) l = i; }); return l; }
+/* Grown-up art doesn't exist yet, so a grown-up player sees teen pictures until it's made */
+function posesFor() {
+  const lvl = levelFor(bestStreak());
+  if (lvl === 0) return cur.th;
+  const th = TEEN[(cur.n - 1) % TEEN.length], off = dayNum % th.p.length;
+  return [0, 1, 2, 3].map((k) => th.p[(off + k) % th.p.length]);
+}
+function renderGrow() {
+  const best = bestStreak(), lvl = levelFor(best), box = $("gsteps"); box.innerHTML = "";
+  const pics = [PUZZLES[0].img, TEEN[2].p[0], null];
+  STAGES.forEach((s, i) => {
+    if (i) { const b = document.createElement("i"); b.className = "bar" + (lvl >= i ? " on" : ""); box.appendChild(b); }
+    const el = document.createElement("div"); el.className = "gstep" + (i === lvl ? " now" : "") + (i > lvl ? " locked" : "");
+    el.innerHTML = `<span class="pic">${pics[i] ? `<img src="${pics[i]}" alt="">` : "?"}</span><b>${s.name}</b><small>${s.at ? s.at + "-day streak" : "Start here"}</small>`;
+    box.appendChild(el);
+  });
+  const next = STAGES[lvl + 1];
+  $("gnote").innerHTML = next ? `Finish ${next.at - best === 1 ? "<b>1 more day</b>" : "<b>" + (next.at - best) + " more days</b>"} in a row and Hanzo grows into <b>${next.name}</b>.` : "Hanzo is all grown up. Thanks for sticking with him!";
+}
+function growUp(lvl) {
+  const s = STAGES[lvl];
+  poses = posesFor(); setPic(poses[poseFor(found ? found.size : 0)]);
+  $("kicker").textContent = "Hanzo grew up!";
+  $("say").textContent = "Meet " + s.name + "! Thanks for showing up " + s.at + " days in a row.";
+  bump("wiggle"); hearts(10); paws(); renderGrow();
+}
+function poseFor(n) { return Math.min(3, Math.floor(n / Math.ceil(cur.w.length / 4))); }
+function setPic(src, instant) {
+  if (!front) { front = $("hanzoImg"); back = $("hanzoB"); }
+  if (instant || !front.getAttribute("src")) { front.src = src; front.classList.remove("out"); back.classList.add("out"); return; }
+  if (front.getAttribute("src") === src) return;
+  back.src = src; back.alt = "Hanzo the Akita puppy"; front.alt = "";
+  back.classList.remove("out"); front.classList.add("out");
+  [front, back] = [back, front];
+}
+function hearts(n) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = $("hearts"), marks = ["♥", "🐾", "♥", "✦"];
+  for (let i = 0; i < n; i++) { const h = document.createElement("span"); h.className = "heart"; h.textContent = marks[i % marks.length];
+    h.style.left = (25 + Math.random() * 50) + "%"; h.style.animationDelay = (i * .12) + "s"; box.appendChild(h); setTimeout(() => h.remove(), 1800); }
+}
+function setAnchor(cell) { document.querySelectorAll(".cell.anchor").forEach((e) => e.classList.remove("anchor")); anchor = cell; if (cell) { const el = $("grid").children[cell[0] * N + cell[1]]; el && el.classList.add("anchor"); } }
+
+function attempt(a, b) {
+  if (!startedAt) { startedAt = Date.now(); tick(); }
+  const key = wordAt(a, b);
+  if (key && !found.has(key)) {
+    found.add(key);
+    const disp = cur.w.find((w) => w[1] === key)[0];
+    $("say").textContent = cheers[found.size % cheers.length] + " " + disp + "!";
+    const before = poseFor(found.size - 1);
+    bump("hop"); hearts(4); drawLines(); updateWords(); save();
+    if (poseFor(found.size) !== before) setTimeout(() => setPic(poses[poseFor(found.size)]), 450);
+    if (found.size === cur.w.length) finish(false);
+    return true;
+  }
+  return false;
+}
+function save() { if (isDaily) store.set("progress", { day: today, n: cur.n, found: [...found], ms: startedAt ? Date.now() - startedAt : 0 }); }
+
+const gw = $("gridwrap");
+gw.addEventListener("pointerdown", (e) => {
+  const cell = cellAt(e.clientX, e.clientY); if (!cell || !$("done").hidden) return;
+  e.preventDefault(); gw.setPointerCapture(e.pointerId);
+  drag = { from: anchor || cell, start: cell, moved: false }; drawLines(snap(drag.from, cell));
+});
+gw.addEventListener("pointermove", (e) => {
+  if (!drag) return; const cell = cellAt(e.clientX, e.clientY); if (!cell) return;
+  if (cell[0] !== drag.start[0] || cell[1] !== drag.start[1]) drag.moved = true;
+  if (drag.moved && anchor) { drag.from = drag.start; setAnchor(null); }
+  drawLines(snap(drag.from, cell)); drag.last = cell;
+});
+function endDrag(e) {
+  if (!drag) return; const d = drag; drag = null;
+  const cell = cellAt(e.clientX, e.clientY) || d.last || d.start;
+  if (!d.moved) { // tap: first tap sets a start letter, second tap picks the end
+    if (anchor) { const [a, b] = snap(anchor, cell); setAnchor(null); if (!attempt(a, b)) $("say").textContent = "Hmm, not one of mine. Try again!"; drawLines(); }
+    else { setAnchor(cell); drawLines(); $("say").textContent = "Now tap the last letter."; }
+    return;
+  }
+  const [a, b] = snap(d.from, cell); if (a[0] !== b[0] || a[1] !== b[1]) { if (!attempt(a, b)) $("say").textContent = "Hmm, not one of mine. Try again!"; }
+  drawLines();
+}
+gw.addEventListener("pointerup", endDrag);
+gw.addEventListener("pointercancel", () => { drag = null; drawLines(); });
+
+/* a finished daily puzzle of any kind counts the day for the streak */
+function dailyDone() {
+  const st = store.get("streak", { last: null, count: 0, best: 0, days: [] });
+  const before = levelFor(st.best || 0);
+  if (st.last !== today) {
+    st.count = st.last && daysBetween(st.last, today) === 1 ? st.count + 1 : 1;
+    st.best = Math.max(st.best || 0, st.count); st.last = today;
+    st.days = [...new Set([...(st.days || []), today])].slice(-30);
+    store.set("streak", st);
+  }
+  const after = levelFor(st.best || 0);
+  return { st, up: after > before ? after : 0 };
+}
+function showDone(o) {
+  showStreak();
+  $("say").textContent = o.say; $("doneTitle").textContent = o.title;
+  $("factLabel").textContent = o.label; $("fact").textContent = o.fact;
+  renderWeek(o.st); $("done").hidden = false; $("shareText").hidden = true; $("shareNote").textContent = "";
+  if (!o.already) { bump("wiggle"); hearts(10); paws(); }
+  if (!o.already && o.up && previewBest == null) setTimeout(() => growUp(o.up), 1600);
+  const streakLine = o.st.last === today && o.st.count ? "\nTidy streak: " + o.st.count + (o.st.count === 1 ? " day" : " days") : "";
+  $("shareText").value = "🐾 " + o.share + streakLine + (CONFIG.shareUrl ? "\n" + CONFIG.shareUrl : "");
+  markTabs();
+}
+function finish(already) {
+  clearInterval(timerId);
+  const ms = startedAt ? Date.now() - startedAt : 0;
+  $("clock").textContent = fmt(ms);
+  let res = { st: store.get("streak", { last: null, count: 0, best: 0, days: [] }), up: 0 };
+  if (isDaily && !already) { res = dailyDone(); store.set("progress", { day: today, n: cur.n, found: [...found], ms, done: true }); }
+  if (game !== "ws") return;
+  showDone({ already, st: res.st, up: res.up,
+    say: isDaily ? "You found them all! Same time tomorrow?" : "All found! You're a great helper.",
+    title: "You found all " + cur.w.length + " words in " + fmt(ms) + "!", label: "Puppy fact:", fact: cur.f,
+    share: "I helped Hanzo find all " + cur.w.length + " words in " + fmt(ms) + " (No. " + cur.n + ", " + cur.t + ")" });
+}
+function renderWeek(st) {
+  const wk = $("week"); wk.innerHTML = ""; const names = ["S", "M", "T", "W", "T", "F", "S"]; const now = new Date();
+  for (let i = 6; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); const k = dayKey(d);
+    const s = document.createElement("span"); s.innerHTML = `<i class="${(st.days || []).includes(k) ? "on" : ""}"></i>${names[d.getDay()]}`; wk.appendChild(s); }
+}
+function showStreak() {
+  const st = store.get("streak", { last: null, count: 0 });
+  const alive = st.last && daysBetween(st.last, today) <= 1 ? st.count : 0;
+  $("streakNum").textContent = alive; $("streakWord").textContent = alive === 1 ? "day streak" : "day streak";
+}
+function paws() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = $("paws");
+  for (let i = 0; i < 18; i++) { const p = document.createElement("span"); p.className = "paw"; p.textContent = "🐾"; p.style.left = Math.random() * 100 + "vw"; p.style.animationDelay = Math.random() * .6 + "s"; box.appendChild(p); setTimeout(() => p.remove(), 3200); }
+}
+
+$("shareBtn").addEventListener("click", () => {
+  const text = $("shareText").value;
+  const note = $("shareNote");
+  const fallback = () => { $("shareText").hidden = false; $("shareText").select(); note.textContent = "Copy this and paste it anywhere."; };
+  if (navigator.share) { navigator.share({ text }).catch((e) => { if (e && e.name !== "AbortError") fallback(); }); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => { note.textContent = "Copied. Paste it in your story or a text."; }, fallback);
+  else fallback();
+});
+let extra = store.get("extra", (dailyIndex + 1) % PUZZLES.length);
+function playExtra() {
+  if (game === "sd") { let x = store.get("sdextra", (dayNum + 1) % SUDOKU.length); if (x === dayNum % SUDOKU.length) x = (x + 1) % SUDOKU.length; store.set("sdextra", (x + 1) % SUDOKU.length); $("done").hidden = true; sdRender(x, false); }
+  else if (game === "xw") { let x = store.get("xwextra", (dayNum + 1) % XWORD.length); if (x === dayNum % XWORD.length) x = (x + 1) % XWORD.length; store.set("xwextra", (x + 1) % XWORD.length); $("done").hidden = true; xwRender(x, false); }
+  else { if (extra === dailyIndex) extra = (extra + 1) % PUZZLES.length; const i = extra; extra = (extra + 1) % PUZZLES.length; store.set("extra", extra); render(i, false); }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+$("nextBtn").addEventListener("click", playExtra);
+$("moreBtn").addEventListener("click", playExtra);
+
+/* ---------- switching games ---------- */
+let game = "ws";
+function wsResume() {
+  if (!cur) return;
+  $("kicker").textContent = (isDaily ? "Today's puzzle · No. " : "Extra puzzle · No. ") + cur.n;
+  setPic(poses[poseFor(found.size)], true);
+  if (found.size === cur.w.length) finish(true);
+  else $("say").textContent = found.size ? "Welcome back! " + (cur.w.length - found.size) + " words still hiding." : "Can you help me find " + cur.w.length + " words about " + cur.t.toLowerCase() + "?";
+}
+function show(g) {
+  game = g; store.set("tab", g);
+  ["ws", "sd", "xw"].forEach((k) => { $("g-" + k).hidden = k !== g; });
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.g === g ? "true" : "false"));
+  $("done").hidden = true;
+  if (g === "ws") wsResume();
+  if (g === "sd") { if (!sd) sdRender(dayNum % SUDOKU.length, true); else sdResume(); }
+  if (g === "xw") { if (!xw) xwRender(dayNum % XWORD.length, true); else xwResume(); }
+}
+function markTabs() {
+  const done = {
+    ws: (() => { const p = store.get("progress", null); return p && p.day === today && p.done; })(),
+    sd: (() => { const p = store.get("sd", null); return p && p.day === today && p.done; })(),
+    xw: (() => { const p = store.get("xw", null); return p && p.day === today && p.done; })()
+  };
+  const names = { ws: "Word search", sd: "Sudoku", xw: "Crossword" };
+  document.querySelectorAll(".tabs button").forEach((b) => { b.innerHTML = names[b.dataset.g] + (done[b.dataset.g] ? ' <span class="tick" aria-label="done today">✓</span>' : ""); });
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.g)));
+function poseFrac(f) { return Math.min(3, Math.floor(f * 4)); }
+
+/* ---------- sudoku ---------- */
+let sd = null, sTimer = null;
+function sdRender(i, daily) {
+  const P = SUDOKU[i];
+  sd = { i, daily, s: P.s, given: P.p.split("").map((x) => x !== "0"), vals: P.p.split("").map(Number), start: null, sel: -1, done: false, bad: new Set() };
+  const saved = daily ? store.get("sd", null) : null;
+  if (saved && saved.day === today && saved.i === i) { sd.vals = saved.vals; sd.start = Date.now() - (saved.ms || 0); sd.done = !!saved.done; sd.ms = saved.ms; }
+  sd.vals.forEach((v, k) => { if (v && !sd.given[k] && v !== +sd.s[k]) sd.bad.add(k); });
+  clearInterval(sTimer); $("sclock").textContent = sd.start ? fmt(sd.done ? sd.ms : Date.now() - sd.start) : "0:00";
+  const g = $("sgrid"); g.innerHTML = "";
+  for (let k = 0; k < 81; k++) {
+    const b = document.createElement("button"); b.type = "button"; const r = Math.floor(k / 9), c = k % 9;
+    b.className = "scell r" + r + " c" + c + (sd.given[k] ? " given" : ""); b.setAttribute("role", "gridcell");
+    b.setAttribute("aria-label", "Row " + (r + 1) + ", column " + (c + 1));
+    b.addEventListener("click", () => { sd.sel = k; sdPaint(); });
+    g.appendChild(b);
+  }
+  const pad = $("pad"); pad.innerHTML = "";
+  for (let d = 1; d <= 9; d++) { const b = document.createElement("button"); b.type = "button"; b.textContent = d; b.dataset.d = d; b.addEventListener("click", () => sdInput(d)); pad.appendChild(b); }
+  const er = document.createElement("button"); er.type = "button"; er.className = "erase"; er.textContent = "Erase"; er.addEventListener("click", () => sdInput(0)); pad.appendChild(er);
+  sdPaint(); sdResume();
+}
+function sdRight() { let n = 0, t = 0; sd.vals.forEach((v, k) => { if (!sd.given[k]) { t++; if (v === +sd.s[k]) n++; } }); return [n, t]; }
+function sdPaint() {
+  const cells = $("sgrid").children, sel = sd.sel, sv = sel >= 0 ? sd.vals[sel] : 0;
+  for (let k = 0; k < 81; k++) {
+    const b = cells[k], v = sd.vals[k];
+    b.textContent = v || "";
+    const peer = sel >= 0 && k !== sel && (Math.floor(k / 9) === Math.floor(sel / 9) || k % 9 === sel % 9 || (Math.floor(k / 27) === Math.floor(sel / 27) && Math.floor(k % 9 / 3) === Math.floor(sel % 9 / 3)));
+    b.classList.toggle("sel", k === sel); b.classList.toggle("peer", peer); b.classList.toggle("same", !!sv && v === sv && k !== sel); b.classList.toggle("bad", sd.bad.has(k));
+  }
+  const count = {}; sd.vals.forEach((v, k) => { if (v && !sd.bad.has(k)) count[v] = (count[v] || 0) + 1; });
+  [...$("pad").children].forEach((b) => b.dataset.d && b.classList.toggle("used", count[b.dataset.d] === 9));
+}
+function sdResume() {
+  $("kicker").textContent = (sd.daily ? "Today's sudoku · No. " : "Extra sudoku · No. ") + (sd.i + 1);
+  const [n, t] = sdRight(); setPic(poses[poseFrac(n / t)], true);
+  if (sd.done) sdFinish(true);
+  else { $("say").textContent = n ? "Welcome back! " + (t - n) + " squares to go." : "Help me fill the grid! Each row, column and box gets 1 to 9."; if (sd.start) sdTick(); }
+}
+function sdTick() { clearInterval(sTimer); sTimer = setInterval(() => { $("sclock").textContent = fmt(Date.now() - sd.start); }, 500); }
+function sdUnitDone(k) {
+  const r = Math.floor(k / 9), c = k % 9, units = [[], [], []];
+  for (let j = 0; j < 9; j++) { units[0].push(r * 9 + j); units[1].push(j * 9 + c); }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) units[2].push((br + a) * 9 + bc + b);
+  return ["row", "column", "box"].filter((_, u) => units[u].every((x) => sd.vals[x] === +sd.s[x]));
+}
+function sdInput(d) {
+  if (!sd || sd.done || sd.sel < 0 || sd.given[sd.sel]) return;
+  if (!sd.start) { sd.start = Date.now(); sdTick(); }
+  const k = sd.sel, before = poseFrac(sdRight()[0] / sdRight()[1]);
+  sd.vals[k] = d; sd.bad.delete(k);
+  if (d && d !== +sd.s[k]) { sd.bad.add(k); $("say").textContent = "Hmm, " + d + " doesn't fit there."; }
+  else if (d) {
+    const u = sdUnitDone(k);
+    if (u.length) { bump("hop"); hearts(4); $("say").textContent = ["Woof!", "Yes!", "Good human!", "Tail wags!", "Look at you!"][Math.floor(Math.random() * 5)] + " That " + u[0] + " is done!"; }
+  }
+  sdPaint(); sdSave();
+  const [n, t] = sdRight();
+  if (poseFrac(n / t) !== before) setTimeout(() => setPic(poses[poseFrac(n / t)]), 450);
+  if (n === t) sdFinish(false);
+}
+function sdSave(ms, done) { if (sd.daily) store.set("sd", { day: today, i: sd.i, vals: sd.vals, ms: ms != null ? ms : (sd.start ? Date.now() - sd.start : 0), done: !!done }); }
+function sdFinish(already) {
+  clearInterval(sTimer);
+  const ms = already ? (sd.ms || 0) : (sd.start ? Date.now() - sd.start : 0); sd.ms = ms; sd.done = true; sd.sel = -1; sdPaint();
+  $("sclock").textContent = fmt(ms);
+  let res = { st: store.get("streak", { last: null, count: 0, best: 0, days: [] }), up: 0 };
+  if (!already && sd.daily) { res = dailyDone(); sdSave(ms, true); }
+  showDone({ already, st: res.st, up: res.up,
+    say: sd.daily ? "You solved it! Same time tomorrow?" : "Solved! You're a great helper.",
+    title: "You solved the sudoku in " + fmt(ms) + "!", label: "Hanzo says:", fact: "Akitas love a routine. A puzzle a day keeps the zoomies away.",
+    share: "I solved Hanzo's sudoku in " + fmt(ms) + " (No. " + (sd.i + 1) + ")" });
+}
+
+/* ---------- crossword ---------- */
+let xw = null, xTimer = null;
+const KEYROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+function xCells(cl) { const out = []; for (let k = 0; k < cl.a.length; k++) out.push((cl.r + (cl.d === "D" ? k : 0)) * xw.W + cl.c + (cl.d === "A" ? k : 0)); return out; }
+function xRender() {
+  const g = $("xgrid"), X = xw.X; g.innerHTML = ""; g.style.gridTemplateColumns = "repeat(" + xw.W + ", 1fr)";
+  const nums = {}; X.c.forEach((cl) => { nums[cl.r * xw.W + cl.c] = cl.n; });
+  for (let k = 0; k < xw.H * xw.W; k++) {
+    const r = Math.floor(k / xw.W), c = k % xw.W, ch = X.g[r][c];
+    const b = document.createElement("button"); b.type = "button"; b.className = "xcell" + (ch === "." ? " block" : "");
+    if (ch === ".") { b.tabIndex = -1; b.setAttribute("aria-hidden", "true"); }
+    else { b.setAttribute("aria-label", (nums[k] ? nums[k] + ", " : "") + "row " + (r + 1) + ", column " + (c + 1)); b.addEventListener("click", () => xTap(k)); }
+    b.innerHTML = (nums[k] ? `<span class="num">${nums[k]}</span>` : "") + "<i></i>";
+    g.appendChild(b);
+  }
+  const keys = $("keys"); keys.innerHTML = "";
+  KEYROWS.forEach((row, ri) => { const d = document.createElement("div");
+    [...row].forEach((ch) => { const b = document.createElement("button"); b.type = "button"; b.textContent = ch; b.addEventListener("click", () => xType(ch)); d.appendChild(b); });
+    if (ri === 2) { const b = document.createElement("button"); b.type = "button"; b.className = "wide"; b.textContent = "⌫"; b.setAttribute("aria-label", "Delete"); b.addEventListener("click", xBack); d.appendChild(b); }
+    keys.appendChild(d); });
+  const cl = $("clues"); cl.innerHTML = "";
+  [["A", "Across"], ["D", "Down"]].forEach(([d, name]) => {
+    const box = document.createElement("div"); box.innerHTML = `<h4>${name}</h4>`; const ol = document.createElement("ol");
+    X.c.forEach((c, ci) => { if (c.d !== d) return; const li = document.createElement("li"); li.dataset.ci = ci; li.innerHTML = `<b>${c.n}</b>${c.q}`; li.addEventListener("click", () => { xw.ci = ci; xw.k = xCells(c).find((k) => !xw.L[k]) ?? xCells(c)[0]; xPaint(); $("xgrid").scrollIntoView({ block: "nearest", behavior: "smooth" }); }); ol.appendChild(li); });
+    box.appendChild(ol); cl.appendChild(box);
+  });
+}
+function xwRender(i, daily) {
+  const X = XWORD[i];
+  xw = { i, daily, X, H: X.g.length, W: X.g[0].length, L: [], ci: 0, k: 0, start: null, done: false, solved: new Set() };
+  xw.L = new Array(xw.H * xw.W).fill("");
+  const saved = daily ? store.get("xw", null) : null;
+  if (saved && saved.day === today && saved.i === i) { xw.L = saved.L; xw.start = Date.now() - (saved.ms || 0); xw.done = !!saved.done; xw.ms = saved.ms; }
+  X.c.forEach((c, ci) => { if (xCells(c).every((k, j) => xw.L[k] === c.a[j])) xw.solved.add(ci); });
+  xw.ci = X.c.findIndex((c, ci) => !xw.solved.has(ci)); if (xw.ci < 0) xw.ci = 0;
+  xw.k = xCells(X.c[xw.ci]).find((k) => !xw.L[k]) ?? xCells(X.c[xw.ci])[0];
+  clearInterval(xTimer); $("xclock").textContent = xw.start ? fmt(xw.done ? xw.ms : Date.now() - xw.start) : "0:00";
+  $("xtheme").textContent = X.t;
+  xRender(); xPaint(); xwResume();
+}
+function xPaint() {
+  const cells = $("xgrid").children, cur = xw.X.c[xw.ci], inWord = new Set(xCells(cur)), ok = new Set();
+  xw.solved.forEach((ci) => xCells(xw.X.c[ci]).forEach((k) => ok.add(k)));
+  for (let k = 0; k < cells.length; k++) { const b = cells[k]; if (b.classList.contains("block")) continue;
+    b.lastChild.textContent = xw.L[k] || ""; b.classList.toggle("word", inWord.has(k)); b.classList.toggle("sel", k === xw.k && !xw.done); b.classList.toggle("ok", ok.has(k)); }
+  $("xnum").textContent = cur.n + (cur.d === "A" ? " Across" : " Down"); $("xq").textContent = cur.q;
+  $("xcount").textContent = xw.solved.size + " of " + xw.X.c.length;
+  document.querySelectorAll("#clues li").forEach((li) => { li.classList.toggle("on", +li.dataset.ci === xw.ci); li.classList.toggle("solved", xw.solved.has(+li.dataset.ci)); });
+}
+function xwResume() {
+  $("kicker").textContent = (xw.daily ? "Today's crossword · No. " : "Extra crossword · No. ") + (xw.i + 1);
+  setPic(poses[poseFrac(xw.solved.size / xw.X.c.length)], true);
+  if (xw.done) xwFinish(true);
+  else { $("say").textContent = xw.solved.size ? "Welcome back! " + (xw.X.c.length - xw.solved.size) + " words to go." : "Tap a square and type. Every answer is about " + xw.X.t.toLowerCase() + "!"; if (xw.start) xTick(); }
+}
+function xTick() { clearInterval(xTimer); xTimer = setInterval(() => { $("xclock").textContent = fmt(Date.now() - xw.start); }, 500); }
+function xTap(k) {
+  const here = xw.X.c.map((c, ci) => [c, ci]).filter(([c]) => xCells(c).includes(k));
+  if (!here.length) return;
+  const curD = xw.X.c[xw.ci].d;
+  let pick = here.find(([c]) => c.d === curD) || here[0];
+  if (k === xw.k && here.length > 1) pick = here.find(([c]) => c.d !== curD);
+  xw.k = k; xw.ci = pick[1]; xPaint();
+}
+function xMoveClue(step) {
+  const n = xw.X.c.length; for (let j = 1; j <= n; j++) { const ci = (xw.ci + step * j + n * 2) % n; if (!xw.solved.has(ci) || j === n) { xw.ci = ci; break; } }
+  const cs = xCells(xw.X.c[xw.ci]); xw.k = cs.find((k) => !xw.L[k]) ?? cs[0]; xPaint();
+}
+function xType(ch) {
+  if (!xw || xw.done) return;
+  if (!xw.start) { xw.start = Date.now(); xTick(); }
+  xw.L[xw.k] = ch;
+  const before = xw.solved.size; let newWord = null;
+  xw.X.c.forEach((c, ci) => { const ok = xCells(c).every((k, j) => xw.L[k] === c.a[j]); if (ok && !xw.solved.has(ci)) { xw.solved.add(ci); newWord = c; } if (!ok) xw.solved.delete(ci); });
+  const cs = xCells(xw.X.c[xw.ci]), pos = cs.indexOf(xw.k);
+  if (newWord && xw.solved.has(xw.ci)) { bump("hop"); hearts(4); $("say").textContent = cheers[xw.solved.size % cheers.length] + " " + newWord.a + "!"; if (xw.solved.size < xw.X.c.length) setTimeout(() => xMoveClue(1), 350); }
+  else if (newWord) { bump("hop"); hearts(4); $("say").textContent = cheers[xw.solved.size % cheers.length] + " " + newWord.a + "!"; }
+  if (!(newWord && xw.solved.has(xw.ci))) { const next = cs.slice(pos + 1).find((k) => !xw.L[k]); xw.k = next ?? cs[Math.min(pos + 1, cs.length - 1)]; }
+  xPaint(); xSave();
+  if (poseFrac(xw.solved.size / xw.X.c.length) !== poseFrac(before / xw.X.c.length)) setTimeout(() => setPic(poses[poseFrac(xw.solved.size / xw.X.c.length)]), 450);
+  if (xw.solved.size === xw.X.c.length) xwFinish(false);
+}
+function xBack() {
+  if (!xw || xw.done) return;
+  const cs = xCells(xw.X.c[xw.ci]), pos = cs.indexOf(xw.k);
+  if (!xw.L[xw.k] && pos > 0) xw.k = cs[pos - 1];
+  xw.L[xw.k] = "";
+  xw.X.c.forEach((c, ci) => { if (!xCells(c).every((k, j) => xw.L[k] === c.a[j])) xw.solved.delete(ci); });
+  xPaint(); xSave();
+}
+function xSave(ms, done) { if (xw.daily) store.set("xw", { day: today, i: xw.i, L: xw.L, ms: ms != null ? ms : (xw.start ? Date.now() - xw.start : 0), done: !!done }); }
+function xwFinish(already) {
+  clearInterval(xTimer);
+  const ms = already ? (xw.ms || 0) : (xw.start ? Date.now() - xw.start : 0); xw.ms = ms; xw.done = true; xPaint();
+  $("xclock").textContent = fmt(ms);
+  let res = { st: store.get("streak", { last: null, count: 0, best: 0, days: [] }), up: 0 };
+  if (!already && xw.daily) { res = dailyDone(); xSave(ms, true); }
+  showDone({ already, st: res.st, up: res.up,
+    say: xw.daily ? "You got every word! Same time tomorrow?" : "Every word! You're a great helper.",
+    title: "You solved the crossword in " + fmt(ms) + "!", label: "Theme:", fact: xw.X.t,
+    share: "I solved Hanzo's crossword in " + fmt(ms) + " (No. " + (xw.i + 1) + ", " + xw.X.t + ")" });
+}
+$("xprev").addEventListener("click", () => xMoveClue(-1));
+$("xnext").addEventListener("click", () => xMoveClue(1));
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (game === "xw" && xw) {
+    if (/^[a-z]$/i.test(e.key)) { xType(e.key.toUpperCase()); e.preventDefault(); }
+    else if (e.key === "Backspace") { xBack(); e.preventDefault(); }
+    else if (e.key === "Enter" || e.key === "Tab") { xMoveClue(e.shiftKey ? -1 : 1); e.preventDefault(); }
+  } else if (game === "sd" && sd) {
+    if (/^[1-9]$/.test(e.key)) { sdInput(+e.key); e.preventDefault(); }
+    else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") { sdInput(0); e.preventDefault(); }
+    else if (/^Arrow/.test(e.key) && sd.sel >= 0) { const m = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[e.key]; const k = sd.sel + m; if (k >= 0 && k < 81 && !(m === 1 && k % 9 === 0) && !(m === -1 && sd.sel % 9 === 0)) { sd.sel = k; sdPaint(); } e.preventDefault(); }
+  }
+});
+
+function shelf() {
+  const books = [
+    { k: "Printable PDF", n: "Baby Hanzo Word Search, Vol. 1", p: "$6.99", href: CONFIG.etsy, soon: "Link added before launch" },
+    { k: "Paperback", n: "Baby Hanzo Word Search, Vol. 1", p: "$15", href: CONFIG.paperback, soon: "Coming soon" }
+  ];
+  $("books").innerHTML = "";
+  books.forEach((b) => {
+    const el = document.createElement(b.href ? "a" : "div"); el.className = "book";
+    if (b.href) { el.href = b.href; el.target = "_blank"; el.rel = "noopener"; }
+    el.innerHTML = `<span class="k">${b.k}</span><span class="n">${b.n}</span><span class="p">${b.p}</span>` + (b.href ? "" : `<span class="soon">${b.soon}</span>`);
+    $("books").appendChild(el);
+  });
+}
+
+const m = /^#p(\d{1,2})$/.exec(location.hash || "");
+shelf(); showStreak();
+if (CONFIG.preview) {
+  $("preview").hidden = false;
+  $("preview").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    const before = levelFor(bestStreak());
+    previewBest = +b.dataset.s;
+    $("preview").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    const lvl = levelFor(previewBest);
+    if (lvl > before) growUp(lvl); else { poses = posesFor(); setPic(poses[poseFor(found.size)]); renderGrow(); }
+  }));
+}
+if (m && +m[1] >= 1 && +m[1] <= PUZZLES.length) render(+m[1] - 1, false); else render(dailyIndex, true);
+markTabs();
+const lastTab = store.get("tab", "ws");
+if (lastTab !== "ws" && !m) show(lastTab);
+</script>
+
+</body>
+</html>
