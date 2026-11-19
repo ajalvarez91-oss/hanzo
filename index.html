@@ -91,6 +91,19 @@ button:focus-visible, .btn:focus-visible, .cell:focus-visible { outline: 3px sol
 .sharebox { width: 100%; font: inherit; font-size: .9rem; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); padding: 8px; resize: none; }
 .note { font-size: .85rem; color: var(--muted); min-height: 1.2em; }
 
+.shopbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 8px 10px 8px 14px; }
+.shopbar .wm { font-family: var(--display); font-weight: 700; font-size: 1.1rem; line-height: 1.1; }
+.shopbar .wm small { display: block; font-family: var(--body); font-weight: 400; font-size: .76rem; color: var(--muted); }
+.cta { display: inline-flex; align-items: center; gap: 6px; background: var(--amber); color: #fff; font-weight: 700; text-decoration: none; border-radius: 999px; padding: 8px 14px; white-space: nowrap; font-size: .92rem; }
+.cta:hover { filter: brightness(1.06); }
+.pick { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 12px; padding: 10px; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); }
+.pick:hover { border-color: var(--amber); }
+.pick img { width: 84px; height: 63px; object-fit: cover; border-radius: 8px; flex: none; background: var(--amber-soft); }
+.pick .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.pick .n { font-family: var(--display); font-weight: 600; line-height: 1.2; }
+.pick .p { font-weight: 700; color: var(--amber); }
+.shelf .all { align-self: center; }
+.book img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--amber-soft); margin-bottom: 4px; }
 .shelf { background: var(--amber-soft); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .shelf h3 { font-family: var(--display); font-weight: 700; font-size: 1.2rem; margin: 0; }
 .shelf p { margin: 0; font-size: .95rem; }
@@ -187,6 +200,10 @@ footer { font-size: .78rem; color: var(--muted); text-align: center; text-wrap: 
   <div class="preview" id="preview" hidden>Preview only, as if your best streak were:
     <button type="button" data-s="0">Day 1, baby</button><button type="button" data-s="7">7 days, teen</button><button type="button" data-s="30">30 days, grown-up</button>
   </div>
+  <nav class="shopbar" aria-label="TidyHoursCo shop">
+    <div class="wm">TidyHoursCo<small>Printable planners, budgets and puzzles</small></div>
+    <a class="cta" id="shopTop" target="_blank" rel="noopener">Shop on Etsy</a>
+  </nav>
   <header>
     <div class="brand">Help Hanzo Find<small>A daily puzzle from TidyHoursCo</small></div>
     <div class="streak" title="Days in a row you finished the daily puzzle">🐾 <b id="streakNum">0</b> <span id="streakWord">day streak</span></div>
@@ -249,19 +266,21 @@ footer { font-size: .78rem; color: var(--muted); text-align: center; text-wrap: 
       <button id="shareBtn" type="button">Share my result</button>
       <button id="nextBtn" class="ghost" type="button">Play another</button>
     </div>
+    <a class="pick" id="pick" target="_blank" rel="noopener" hidden></a>
     <textarea class="sharebox" id="shareText" rows="3" readonly hidden aria-label="Result to copy"></textarea>
     <div class="note" id="shareNote"></div>
   </section>
 
   <section class="shelf" id="shelf">
-    <h3>Take Hanzo offline</h3>
-    <p>Same puppy, same puzzles, on paper. A screen-free break that still keeps your mind tidy.</p>
+    <h3>Shop TidyHoursCo</h3>
+    <p>Printable planners, budgets and puzzles that keep your hours tidy. Instant download on Etsy.</p>
     <div class="books" id="books"></div>
+    <a class="cta all" id="shopAll" target="_blank" rel="noopener">See the whole shop</a>
   </section>
 
   <div class="more"><button id="moreBtn" class="ghost" type="button">Play an extra puzzle</button></div>
 
-  <footer>A new word search, sudoku and crossword every day. Your streak saves on this device only, no sign-up needed.<br>Hanzo is a real Akita. His pictures were made with an AI image tool, based on photos of him.</footer>
+  <footer>Help Hanzo Find is a free daily puzzle from TidyHoursCo, a small shop of printable planners and puzzles. Find us on Etsy, and on Instagram at @tidyhoursco.<br>A new word search, sudoku and crossword every day. Your streak saves on this device only, no sign-up needed.<br>Hanzo is a real Akita. His pictures were made with an AI image tool, based on photos of him.</footer>
 </div>
 <div class="paws" id="paws" aria-hidden="true"></div>
 
@@ -269,6 +288,7 @@ footer { font-size: .78rem; color: var(--muted); text-align: center; text-wrap: 
 /* ---------- settings to fill before launch ---------- */
 const CONFIG = {
   start: "2026-11-23",     // puzzle 1 is the daily puzzle on this date
+  shop: "https://www.etsy.com/shop/TidyHoursCo",   // the TidyHoursCo Etsy shop
   etsy: "https://www.etsy.com/listing/4616085117",                // Baby Hanzo printable listing link
   paperback: "",           // Amazon paperback link, once it's live
   shareUrl: "https://ajalvarez91-oss.github.io/hanzo/",            // the page's public address, added to shared results
@@ -481,6 +501,7 @@ function showDone(o) {
   if (!o.already && o.up && previewBest == null) setTimeout(() => growUp(o.up), 1600);
   const streakLine = o.st.last === today && o.st.count ? "\nTidy streak: " + o.st.count + (o.st.count === 1 ? " day" : " days") : "";
   $("shareText").value = "🐾 " + o.share + streakLine + (CONFIG.shareUrl ? "\n" + CONFIG.shareUrl : "");
+  showPick();
   markTabs();
 }
 function finish(already) {
@@ -752,18 +773,41 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+/* TidyHoursCo's Etsy listings. Seasonal ones lead until Christmas, then the new-year ones. */
+const L = (id) => "https://www.etsy.com/listing/" + id;
+const SHOP = [
+  { id: "4616121984", s: "s09.webp", n: "Christmas Planner", k: "Holiday", p: "$4.50", until: "2026-12-25" },
+  { id: "4616111251", s: "s10.webp", n: "Christmas Budget Spreadsheet", k: "Holiday", p: "$5.00", until: "2026-12-25" },
+  { id: "4616123856", s: "s11.webp", n: "Holiday Meal Planner", k: "Holiday", p: "$3.50", until: "2026-12-25" },
+  { id: "4616119492", s: "s07.webp", n: "2027 Printable Calendar", k: "New year", p: "$3.50" },
+  { id: "4616109219", s: "s08.webp", n: "2027 Goal Planner", k: "New year", p: "$4.50" },
+  { id: "4616085117", s: "s06.webp", n: "Baby Hanzo Word Search, Vol. 1", k: "Puzzles", p: "$6.99", hanzo: true },
+  { id: "4616058720", s: "s03.webp", n: "Weekly Planner", k: "Planners", p: "$4.00" },
+  { id: "4616044775", s: "s01.webp", n: "Monthly Budget Spreadsheet", k: "Budgets", p: "$5.50" },
+  { id: "4616045439", s: "s02.webp", n: "Wedding Planner Spreadsheet", k: "Planners", p: "$8.50" },
+  { id: "4616083987", s: "s05.webp", n: "Beekeeping Word Search", k: "Puzzles", p: "$5.99" },
+  { id: "4616059584", s: "s04.webp", n: "Typography Prints, Set of 3", k: "Wall art", p: "$6.00" }
+];
+function shopList() { return SHOP.filter((x) => !x.until || today <= x.until); }
 function shelf() {
-  const books = [
-    { k: "Printable PDF", n: "Baby Hanzo Word Search, Vol. 1", p: "$6.99", href: CONFIG.etsy, soon: "Link added before launch" },
-    { k: "Paperback", n: "Baby Hanzo Word Search, Vol. 1", p: "$15", href: CONFIG.paperback, soon: "Coming soon" }
-  ];
+  if (CONFIG.etsy) SHOP.find((x) => x.hanzo).href = CONFIG.etsy;
+  $("shopTop").href = CONFIG.shop; $("shopAll").href = CONFIG.shop;
   $("books").innerHTML = "";
-  books.forEach((b) => {
-    const el = document.createElement(b.href ? "a" : "div"); el.className = "book";
-    if (b.href) { el.href = b.href; el.target = "_blank"; el.rel = "noopener"; }
-    el.innerHTML = `<span class="k">${b.k}</span><span class="n">${b.n}</span><span class="p">${b.p}</span>` + (b.href ? "" : `<span class="soon">${b.soon}</span>`);
+  shopList().forEach((b) => {
+    const el = document.createElement("a"); el.className = "book";
+    el.href = b.href || L(b.id); el.target = "_blank"; el.rel = "noopener";
+    el.innerHTML = `<img src="${b.s}" alt="" loading="lazy"><span class="k">${b.k}</span><span class="n">${b.n}</span><span class="p">${b.p}</span>`;
     $("books").appendChild(el);
   });
+}
+/* After a finished puzzle: one shop pick, a different one each day. Hanzo's own book comes up after word searches. */
+function showPick() {
+  const list = shopList();
+  const b = game === "ws" && dayNum % 2 === 0 ? SHOP.find((x) => x.hanzo) : list[dayNum % list.length];
+  const el = $("pick");
+  el.href = b.href || L(b.id);
+  el.innerHTML = `<img src="${b.s}" alt=""><span><span class="k">From the TidyHoursCo shop</span><br><span class="n">${b.n}</span> <span class="p">${b.p}</span></span>`;
+  el.hidden = false;
 }
 
 const m = /^#p(\d{1,2})$/.exec(location.hash || "");
